@@ -571,6 +571,9 @@ que dice qué trae cada versión y qué hacer para actualizar. Al crear el tag
 
 ## Roadmap
 
+Las versiones 1.5 y 2.0 tienen plan propio:
+[docs/plan-1.5-y-2.0.md](docs/plan-1.5-y-2.0.md).
+
 - Adjuntos en Instagram y Messenger (hoy esos canales son de texto; en
   WhatsApp ya van y vienen con vista previa).
 - RAG para knowledge bases grandes (hoy: se inyecta completo con aviso de tamaño).
