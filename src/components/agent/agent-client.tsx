@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { Cable, Plus, Sparkles, Trash2 } from "lucide-react";
 import { BrainStatusCard } from "@/components/agent/brain-status-card";
 import {
@@ -37,6 +38,7 @@ type KbEntry = {
 export function AgentClient() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [aiConfigured, setAiConfigured] = useState(true);
+  const [aiMensaje, setAiMensaje] = useState<string | null>(null);
   const [entries, setEntries] = useState<KbEntry[]>([]);
   const [kbSize, setKbSize] = useState<{ chars: number; warnAt: number; warning: boolean } | null>(null);
   const [saved, setSaved] = useState(false);
@@ -61,6 +63,7 @@ export function AgentClient() {
     if (p) {
       setProfile(p.profile);
       setAiConfigured(p.aiConfigured);
+      setAiMensaje(p.aiMensaje ?? null);
     }
     if (kb) setEntries(kb.entries);
     if (size) setKbSize(size);
@@ -117,9 +120,12 @@ export function AgentClient() {
           {/* El interruptor compartido (#53): el pomo propio de aquí era
               `absolute` sin `left`, arrancaba del centro de la pista y
               encendido quedaba afuera. */}
+          {/* Encender exige IA; APAGAR se puede siempre. Con la llave pausada
+              (#85) el agente sigue «encendido» sin poder pensar, y un
+              interruptor bloqueado dejaría al dueño sin forma de callarlo. */}
           <Switch
             checked={profile.enabled}
-            disabled={!aiConfigured}
+            disabled={!aiConfigured && !profile.enabled}
             label="Agente encendido"
             onCheckedChange={(enabled) => void saveProfile({ enabled })}
           />
@@ -146,13 +152,21 @@ export function AgentClient() {
       {aiCallout === "configurar" && (
         <div className="mx-4 mt-4 rounded-lg border border-brand-soft bg-brand-tint p-5 text-center sm:mx-6 sm:mt-6 sm:p-6">
           <Sparkles className="mx-auto mb-2 h-8 w-8 text-primary" />
-          <p className="font-medium">Configura tu proveedor de IA para activar el agente</p>
-          <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
-            Agrega <code className="rounded bg-secondary px-1">OPENROUTER_API_TOKEN</code> y{" "}
-            <code className="rounded bg-secondary px-1">OPENROUTER_MODEL</code> a las variables
-            de entorno de la instancia y reiníciala. Mientras tanto puedes dejar listo el
-            comportamiento y el conocimiento aquí abajo.
+          <p className="font-medium">
+            {aiMensaje ? "Tu agente no puede contestar" : "Configura tu proveedor de IA para activar el agente"}
           </p>
+          <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
+            {aiMensaje ??
+              "Elige el proveedor, el modelo y pega tu llave: sin reiniciar nada."}{" "}
+            Mientras tanto puedes dejar listo el comportamiento y el conocimiento aquí
+            abajo.
+          </p>
+          <Link
+            href="/settings/ai"
+            className="mt-3 inline-block text-sm font-medium text-brand-text underline underline-offset-2"
+          >
+            Ir a Ajustes → IA →
+          </Link>
         </div>
       )}
 

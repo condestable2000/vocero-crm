@@ -302,15 +302,13 @@ export function ContactPanel({
                 <p className="text-[11px] leading-relaxed text-warning-text">
                   {aiConfigured
                     ? "El agente de Vocero no responde por su cuenta. Configura lo básico y enciéndelo (o conecta tu propio bot por la API)."
-                    : "Falta la clave de IA de la instancia (OPENROUTER_API_TOKEN) para que el agente responda, o conecta tu propio bot por la API."}
-                  {aiConfigured && (
-                    <Link
-                      href="/agent"
-                      className="ml-1 whitespace-nowrap font-medium text-brand-text underline underline-offset-2 hover:text-brand"
-                    >
-                      Configurar agente →
-                    </Link>
-                  )}
+                    : "Falta el proveedor de IA (o está pausado) para que el agente responda, o conecta tu propio bot por la API."}
+                  <Link
+                    href={aiConfigured ? "/agent" : "/settings/ai"}
+                    className="ml-1 whitespace-nowrap font-medium text-brand-text underline underline-offset-2 hover:text-brand"
+                  >
+                    {aiConfigured ? "Configurar agente →" : "Configurar la IA →"}
+                  </Link>
                 </p>
               </div>
             )}

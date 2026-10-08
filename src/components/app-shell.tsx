@@ -28,6 +28,7 @@ export function AppShell({
   theme,
   commit,
   agenda = false,
+  aviso = null,
   children,
 }: {
   branding: Branding;
@@ -38,6 +39,15 @@ export function AppShell({
   commit?: ResolvedCommit;
   /** 015 — ¿esta instancia tiene agenda? Lo decide el servidor. */
   agenda?: boolean;
+  /**
+   * Franja de aviso por encima de TODA la aplicación (#85).
+   *
+   * Va aquí y no dentro de una pantalla porque lo que anuncia no es de una
+   * pantalla: es que el agente no puede contestar. Quien tiene ese problema
+   * no está mirando Ajustes, está mirando su bandeja y preguntándose por qué
+   * no responde nadie.
+   */
+  aviso?: React.ReactNode;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -94,6 +104,8 @@ export function AppShell({
           </button>
           <BrandLogo branding={branding} className="min-w-0" />
         </header>
+
+        {aviso}
 
         <main className="min-h-0 min-w-0 flex-1 overflow-hidden">{children}</main>
       </div>

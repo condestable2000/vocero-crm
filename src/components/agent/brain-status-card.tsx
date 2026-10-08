@@ -51,13 +51,13 @@ export function BrainStatusCard({
           <Callout tone="danger" icon={AlertTriangle} title="Tus clientes pueden recibir dos respuestas">
             El agente incluido y {name ? `tu cerebro externo (${name})` : "tu cerebro externo"}{" "}
             contestan los mismos mensajes: apaga el agente incluido con el interruptor
-            de arriba o quita <Env>OPENROUTER_API_TOKEN</Env> del CRM.
+            de arriba o quita la llave de IA en Ajustes → IA.
           </Callout>
         )}
         {status.warning === "sin_cerebro" && (
           <Callout tone="warning" icon={Info} title="Nadie contesta en automático">
             Tus clientes solo reciben lo que respondas desde la bandeja: enciende el
-            agente incluido (necesita <Env>OPENROUTER_API_TOKEN</Env>) o conecta tu
+            agente incluido (necesita un proveedor de IA en Ajustes → IA) o conecta tu
             cerebro externo con <Env>BOT_API_KEY</Env>.
           </Callout>
         )}
@@ -93,10 +93,10 @@ export function BrainStatusCard({
 function embeddedView(s: BrainStatusDto): RowView {
   const { configured, enabled, answering } = s.embedded;
   const headline = `${enabled ? "Encendido" : "Apagado"} · ${
-    configured ? "token de IA: sí" : "sin token de IA"
+    configured ? "IA configurada" : "sin proveedor de IA"
   }`;
   if (enabled && !configured) {
-    return { tone: "warn", headline, detail: "No contesta: a la instancia le falta OPENROUTER_API_TOKEN." };
+    return { tone: "warn", headline, detail: "No contesta: falta el proveedor de IA, o está pausado (Ajustes → IA)." };
   }
   if (answering) {
     return {
@@ -116,7 +116,7 @@ function embeddedView(s: BrainStatusDto): RowView {
     headline,
     detail: configured
       ? "Enciéndelo con el interruptor de arriba para que conteste."
-      : "Para usarlo, agrega OPENROUTER_API_TOKEN a la instancia y reiníciala.",
+      : "Para usarlo, configura tu proveedor de IA en Ajustes → IA.",
   };
 }
 

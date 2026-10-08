@@ -7,6 +7,8 @@ import { getBranding } from "@/server/branding";
 import { AppShell } from "@/components/app-shell";
 import { resolveCommit } from "@/lib/version";
 import { agendaEnabled } from "@/server/agenda/flag";
+import { avisoIaDe } from "@/server/ai/aviso";
+import { AvisoIaBanner } from "@/components/avisos/aviso-ia";
 
 export default async function AppLayout({
   children,
@@ -20,6 +22,10 @@ export default async function AppLayout({
   const theme = normalizeThemePreference(
     (await cookies()).get(THEME_COOKIE)?.value
   );
+  // El agente encendido y sin con qué pensar se ve desde fuera igual que un
+  // bot roto. Se resuelve en el servidor y en el layout para que se vea desde
+  // CUALQUIER pantalla, no solo desde el panel de un contacto (#85).
+  const aviso = await avisoIaDe(session.organizationId);
 
   return (
     <AppShell
@@ -35,6 +41,7 @@ export default async function AppLayout({
       // prop, igual que los canales de la Bandeja. El nav es un componente de
       // cliente: no puede —ni debe— leer variables de entorno.
       agenda={agendaEnabled()}
+      aviso={<AvisoIaBanner aviso={aviso} />}
     >
       {children}
     </AppShell>

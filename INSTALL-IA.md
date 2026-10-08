@@ -43,7 +43,10 @@ dentro: README → «Instalación» → «Otras plataformas».
    ```
 
 3. La conexión de WhatsApp NO es parte del despliegue: al terminar, dile al
-   usuario que se hace desde la app.
+   usuario que se hace desde la app. Lo mismo la IA: el proveedor, el modelo y
+   la llave se pegan en **Ajustes → IA** (con «Probar conexión» y «Traer
+   modelos»); las variables `OPENROUTER_*` de abajo son solo un respaldo
+   opcional y lo guardado en la app manda sobre ellas.
 
 ## Variables de entorno (ambas rutas)
 
@@ -56,8 +59,8 @@ dentro: README → «Instalación» → «Otras plataformas».
 | `ENCRYPTION_KEY` | generado (base64, 44 caracteres) |
 | `META_WEBHOOK_VERIFY_TOKEN` | generado |
 | `META_GRAPH_API_VERSION` | `v25.0` |
-| `OPENROUTER_API_TOKEN` | del usuario (si lo dio) |
-| `OPENROUTER_MODEL` | si hay token: sugiere `anthropic/claude-sonnet-4.5` u otro a elección |
+| `OPENROUTER_API_TOKEN` | opcional: solo si el usuario lo dio y quiere dejarlo en el entorno. Lo normal es configurarlo después desde la app (Ajustes → IA) |
+| `OPENROUTER_MODEL` | solo si hay token en el entorno: sugiere `anthropic/claude-sonnet-4.5` u otro a elección |
 
 `DOMAIN` solo aplica en la Ruta B (para Caddy). `MEDIA_DIR` no va en la tabla
 a propósito: la imagen ya la trae (`/data/media`, dentro del volumen de `/data`).

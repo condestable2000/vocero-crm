@@ -99,7 +99,9 @@ lo valida con el mismo esquema del arranque (`safeParseEnv` en
 Ver `.env.example` (cada una con guía inline). Las claves: `APP_BASE_URL`,
 `DATABASE_URL`, `BETTER_AUTH_SECRET`, `ENCRYPTION_KEY` (32 bytes base64),
 `META_WEBHOOK_VERIFY_TOKEN` (segmento secreto del webhook), `META_APP_SECRET`
-(opcional, firma), y para IA:
+(opcional, firma). La IA se configura desde la app (Ajustes → IA: proveedor,
+modelo y llave cifrada, con «Probar conexión»); las variables solo son el
+respaldo mientras no haya nada guardado ahí:
 
 ```bash
 OPENROUTER_API_TOKEN=sk-or-...

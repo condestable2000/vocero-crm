@@ -10,7 +10,7 @@ de skills, scripts ni plugins de ningún asistente.
 
 - **Una instancia = un negocio.** Self-hosted; aun así, toda tabla de dominio lleva `organization_id` y toda consulta pasa por `scoped()`.
 - **Solo WhatsApp Cloud API oficial.** Nada de Baileys ni sesiones web. Todo tráfico a Meta pasa por `src/lib/meta/client.ts`.
-- **Secretos cifrados en reposo** (AES-256-GCM, `src/lib/crypto/`); jamás al cliente ni a logs. El token de WhatsApp solo enseña sus últimos 4.
+- **Secretos cifrados en reposo** (AES-256-GCM, `src/lib/crypto/`); jamás al cliente ni a logs. Los tokens de WhatsApp y del proveedor de IA solo enseñan sus últimos 4.
 - **El token de WhatsApp nunca sale del CRM.** Un bot externo conversa a través de `/api/bot/*`, no con Meta.
 - **Soberanía.** El núcleo depende solo de Postgres + WhatsApp Cloud API + un proveedor LLM OpenRouter-compatible opcional. Cualquier tercero entra como conector opcional tras bandera, apagado por defecto (`docs/adr-001-canales-opcionales.md`, `docs/adr-002-conectores-de-agenda.md`).
 - **Español** en código, comentarios, UI y documentación.
@@ -60,7 +60,7 @@ Variables obligatorias (`src/lib/env.ts` las valida en el primer uso; cada una t
 | `META_WEBHOOK_VERIFY_TOKEN` | Verify token y segmento secreto de `/api/webhooks/wa/<token>` |
 | `META_GRAPH_API_VERSION` | Versión de la Graph API (tiene default `v25.0`; las cinco de arriba no) |
 
-Opcionales con efecto grande: `META_APP_SECRET` (firma del webhook), `OPENROUTER_API_TOKEN` / `OPENROUTER_MODEL` (sin token no hay Agente ni Laboratorio), `BOT_API_KEY` (abre `/api/bot/*`), `ALLOW_SIGNUP`, `AGENT_COALESCE_MS`, `WA_MOCK_ENABLED` (solo desarrollo).
+Opcionales con efecto grande: `META_APP_SECRET` (firma del webhook), `OPENROUTER_API_TOKEN` / `OPENROUTER_MODEL` (respaldo del proveedor de IA: lo normal es Ajustes → IA, que manda sobre ellas; sin ninguna de las dos cosas no hay Agente ni Laboratorio), `BOT_API_KEY` (abre `/api/bot/*`), `ALLOW_SIGNUP`, `AGENT_COALESCE_MS`, `WA_MOCK_ENABLED` (solo desarrollo).
 
 Banderas de despliegue (apagadas por defecto; su código viaja siempre en `main` y su migración se aplica igual):
 
@@ -79,7 +79,7 @@ Apagada, cada superficie responde 404 (no 403). El despliegue en producción est
 | Carpeta | Responsabilidad | Entrada |
 |---|---|---|
 | `agenda/` | Motor de citas: horarios, huecos, ofertas, reservas y conectores (enlace fijo, Zoom, Google) | `service.ts`, `flag.ts`, `http.ts`, `connectors/index.ts` |
-| `ai/` | Turno del agente incluido: coalesce + lock por conversación, prompt, acción tipada, handoff | `pipeline.ts`, `prompts.ts`, `actions.ts` |
+| `ai/` | Turno del agente incluido: coalesce + lock por conversación, prompt, acción tipada, handoff. Credencial del proveedor de IA por organización (cifrada; estado `active` o pausada por 401/402), lo que valida y devuelve Ajustes → IA, y el aviso de «agente sin IA» | `pipeline.ts`, `prompts.ts`, `actions.ts`, `credentials.ts`, `settings.ts`, `aviso.ts` |
 | `analytics/` | Números de Resultados (ventas, agente, anuncios, higiene) agregados en SQL; excluye el Laboratorio | `sales.ts`, `bot.ts`, `ads.ts`, `hygiene.ts`, `shared.ts` |
 | `attribution/` | De qué anuncio llegó cada conversación y reporte a la CAPI tras `ATRIBUCION` | `referral.ts`, `store.ts`, `conversions.ts`, `flag.ts` |
 | `auth/` | Registro cerrado tras la primera organización; alta del primer dueño con pipeline y perfil sembrados | `registration.ts`, `on-signup.ts` |
@@ -102,13 +102,13 @@ Sueltos: `contacts.ts` (serialización), `contact-source.ts` (fuente del prospec
 
 | Ruta | Qué hay |
 |---|---|
-| `src/lib/` | Fronteras y utilidades sin estado: `env.ts` (validación lazy), `db/` (`schema.ts`, `tenant.ts` con `scoped()`, `ids.ts` con prefijos `ct_`, `cv_`, `msg_`…), `auth/`, `crypto/`, `meta/` (`client.ts` Graph API, `capi.ts`, `destinatario.ts`, `send-errors.ts`), `ai/` (adaptador LLM con `chatJson<T>`), `api.ts` (`withAuth`, `parseBody`, `apiError`), `rate-limit.ts`, `dev-guard.ts`, `version.ts`, catálogos compartidos con la UI (`channels.ts`, `agenda-connectors.ts`, `analytics.ts`, `types.ts`), marca y tema (`brand.ts`, `branding.ts`, `theme.ts`, `favicon.ts`), tiempo y dinero (`time/`, `money.ts`) |
+| `src/lib/` | Fronteras y utilidades sin estado: `env.ts` (validación lazy), `db/` (`schema.ts`, `tenant.ts` con `scoped()`, `ids.ts` con prefijos `ct_`, `cv_`, `msg_`…), `auth/`, `crypto/`, `meta/` (`client.ts` Graph API, `capi.ts`, `destinatario.ts`, `send-errors.ts`), `ai/` (adaptador LLM con `chatJson<T>`; `provider.ts` resuelve con quién habla —la fila de Ajustes → IA y, de respaldo, `OPENROUTER_*`—, `probe.ts` prueba la conexión y lista modelos, `presets.ts` el catálogo), `api.ts` (`withAuth`, `parseBody`, `apiError`), `rate-limit.ts`, `dev-guard.ts`, `version.ts`, catálogos compartidos con la UI (`channels.ts`, `agenda-connectors.ts`, `analytics.ts`, `types.ts`), marca y tema (`brand.ts`, `branding.ts`, `theme.ts`, `favicon.ts`), tiempo y dinero (`time/`, `money.ts`) |
 | `src/components/` | React: primitivos en `ui/`; una carpeta por pantalla (`inbox/`, `pipeline/`, `contacts/`, `agent/`, `lab/`, `results/`, `bookings/`, `settings/`); `app-shell.tsx`, `app-nav.tsx`, `use-events.ts` (cliente SSE), `use-theme.ts` |
-| `src/app/(app)/` | Pantallas autenticadas: `inbox`, `pipeline`, `contacts`, `results`, `agent`, `lab`, `bookings` (AGENDA) y `settings/{whatsapp,branding,templates,team,calendar,ads,messenger}`. En `(auth)/`: `login` y `register` |
-| `src/app/api/` | Route handlers: `auth/[...all]` (Better Auth) · `conversations`, `contacts`, `pipeline`, `kb`, `agent`, `lab`, `templates`, `analytics`, `bookings`, `calendar`, `media`, `branding`, `seed` (sesión + organización) · `settings/*` (WhatsApp, webhook, marca, equipo, capi, zoom, google, instagram, messenger) · `bot/*` (X-API-Key) · `webhooks/{wa,ig,messenger}/[webhookToken]` (públicos) · `events` (SSE) · `health` · `dev/*` (mocks, 404 en producción) |
+| `src/app/(app)/` | Pantallas autenticadas: `inbox`, `pipeline`, `contacts`, `results`, `agent`, `lab`, `bookings` (AGENDA) y `settings/{whatsapp,branding,templates,team,ai,calendar,ads,messenger}`. En `(auth)/`: `login` y `register` |
+| `src/app/api/` | Route handlers: `auth/[...all]` (Better Auth) · `conversations`, `contacts`, `pipeline`, `kb`, `agent`, `lab`, `templates`, `analytics`, `bookings`, `calendar`, `media`, `branding`, `seed` (sesión + organización) · `settings/*` (WhatsApp, webhook, marca, equipo, IA —`ai`, con `ai/test` y `ai/models`—, capi, zoom, google, instagram, messenger) · `bot/*` (X-API-Key) · `webhooks/{wa,ig,messenger}/[webhookToken]` (públicos) · `events` (SSE) · `health` · `dev/*` (mocks, 404 en producción) |
 | `tests/` | `unit/*.test.ts` (Vitest sin base de datos: módulos puros, guardarraíles que escanean `src/`, contratos) y `e2e/*.md` (guiones por historia con criterios de aceptación) |
 | `scripts/` | `e2e-*.mjs` (arneses de los guiones), `migrate.mjs` (migrador del contenedor), `seed/demo.ts`, `reset-password.mjs` (imprime el `UPDATE`, no toca la BD), `screenshots.mjs` |
-| `drizzle/` | `0000…0014_*.sql` + `meta/` (snapshots y `_journal.json`). Se genera, nunca se edita a mano. A la imagen viajan solo los `.sql` y `_journal.json`: el migrador no abre los snapshots (`.dockerignore`) |
+| `drizzle/` | `0000…0015_*.sql` + `meta/` (snapshots y `_journal.json`). Se genera, nunca se edita a mano. A la imagen viajan solo los `.sql` y `_journal.json`: el migrador no abre los snapshots (`.dockerignore`) |
 | `specs/` | Specs por feature (001, 002, 003, 014–019) con sus contratos; `specs/README.md` explica qué hay y qué no |
 | `docs/` | ADR-001/002, `agenda-conectores.md`, `atribucion-capi.md`, capturas del README. (`getting-started.md`, `sdd-workflow.md`, `three-agent-architecture.md` y `mcp-setup.md` describen el starter de Claude Code, no Vocero) |
 
@@ -116,7 +116,7 @@ Sueltos: `contacts.ts` (serialización), `contact-source.ts` (fuente del prospec
 
 1. Meta hace `POST /api/webhooks/wa/<token>` → `src/app/api/webhooks/wa/[webhookToken]/route.ts`: el segmento debe igualar `META_WEBHOOK_VERIFY_TOKEN` (si no, 404) y la firma HMAC se valida solo si hay `META_APP_SECRET` (`src/server/inbox/webhook.ts`). Responde 200 de inmediato y procesa en `after()`.
 2. `processMessagesValue` en `src/server/inbox/ingest.ts`: credenciales por `phone_number_id` (`whatsapp/credentials.ts`), identidad del remitente (`inbox/identity.ts` → contacto por `wa_identity`), dedup por `wa_message_id`, adjuntos (`whatsapp/media.ts`), anuncio de origen (`attribution/referral.ts` + `store.ts`), lead en la primera etapa (`inbox/lead-activity.ts`) y `publish("message.new")`.
-3. `src/server/ai/trigger.ts` → `scheduleAgentTurn` en `ai/pipeline.ts`: espera `AGENT_COALESCE_MS`, un turno por conversación, arma el prompt (`ai/prompts.ts`), llama a `chatJson` (`src/lib/ai/index.ts`), valida la acción con Zod (`ai/actions.ts`) y la ejecuta: responder, mover etapa (`leads/stage-history.ts`), escalar, ofrecer o reservar cita (`agenda/agent.ts`).
+3. `src/server/ai/trigger.ts` → `scheduleAgentTurn` en `ai/pipeline.ts`: espera `AGENT_COALESCE_MS`, un turno por conversación, arma el prompt (`ai/prompts.ts`), llama a `chatJson` (`src/lib/ai/index.ts`, con el proveedor de Ajustes → IA o, de respaldo, `OPENROUTER_*`; un 401/402 del proveedor pausa la credencial), valida la acción con Zod (`ai/actions.ts`) y la ejecuta: responder, mover etapa (`leads/stage-history.ts`), escalar, ofrecer o reservar cita (`agenda/agent.ts`).
 4. `src/server/inbox/send.ts`: rechaza conversaciones `is_test` (`sandbox_violation`) y ventana cerrada (`window_closed`, `inbox/window.ts`), consulta el canal (`channels/capabilities.ts`), llama a `graphRequest` (`src/lib/meta/client.ts`), persiste el mensaje y publica.
 5. Los `statuses` del webhook pasan por `inbox/status.ts` (nunca degradan) y salen como `message.status`.
 6. `GET /api/events` (`src/app/api/events/route.ts`) emite los eventos de la organización; `src/components/use-events.ts` los recibe y la bandeja hace catch-up con `since=`.

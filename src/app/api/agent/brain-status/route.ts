@@ -1,7 +1,8 @@
 import { withAuth } from "@/lib/api";
 import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
-import { getEnv, isAiConfigured } from "@/lib/env";
+import { getEnv } from "@/lib/env";
+import { isAiConfiguredFor } from "@/lib/ai/provider";
 import { isBotKeyConfigured } from "@/server/bot/auth";
 import {
   botLastSeenAt,
@@ -17,16 +18,17 @@ export const dynamic = "force-dynamic";
  */
 export const GET = withAuth(async (session) => {
   const db = getDb();
-  const [rows, health] = await Promise.all([
+  const [rows, health, aiConfigured] = await Promise.all([
     db
       .select({ enabled: schema.agentProfile.enabled })
       .from(schema.agentProfile)
       .where(scoped(schema.agentProfile.organizationId, session.organizationId))
       .limit(1),
     getBrainHealth(getEnv().BRAIN_HEALTH_URL),
+    isAiConfiguredFor(session.organizationId),
   ]);
   const status = computeBrainStatus({
-    aiConfigured: isAiConfigured(),
+    aiConfigured,
     agentEnabled: rows[0]?.enabled ?? false,
     botKeyConfigured: isBotKeyConfigured(),
     lastSeenAt: botLastSeenAt(),
