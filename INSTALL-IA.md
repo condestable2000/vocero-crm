@@ -26,7 +26,9 @@ código.
      excepto el agente de IA y el Laboratorio; se puede agregar después).
    - **Ruta A o B**: A = el VPS tiene panel Coolify · B = el VPS solo tiene
      Docker.
-2. **Genera tú mismo todos los secretos** (no se los pidas):
+2. **Genera tú mismo todos los secretos** (no se los pidas). En la Ruta B,
+   `pnpm init-env --domain <dominio>` crea el `.env` con todos ya generados y
+   `pnpm doctor` lo verifica. En la Ruta A (sin repo clonado) genéralos con:
 
    ```bash
    openssl rand -base64 32   # BETTER_AUTH_SECRET
@@ -118,11 +120,13 @@ migraciones corren solas al arrancar.
 
 ```bash
 git clone https://github.com/kevinrivm/vocero-crm.git vocero && cd vocero
-cp .env.example .env
-# rellena .env con el dominio del usuario y los secretos generados
+pnpm install && pnpm init-env --domain <dominio>   # .env con los secretos generados (Node 22 + pnpm)
+pnpm doctor                                         # cada ✗ dice cómo arreglarla; sale con 1 si algo falla
 docker compose up -d
 ```
 
+- Sin Node en el VPS: `cp .env.example .env` y rellena el dominio
+  (`DOMAIN` y `APP_BASE_URL`) y los secretos del paso 2.
 - `docker compose up -d` descarga la imagen publicada de la versión que fija
   `docker-compose.yml`. En un VPS ARM o en un fork con cambios propios, usa
   `docker compose up -d --build`: la construye desde el código.

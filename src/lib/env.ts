@@ -8,7 +8,7 @@ import { z } from "zod";
  * que en esa fase se aceptan placeholders — los valores reales llegan al boot.
  */
 
-const envSchema = z.object({
+export const envSchema = z.object({
   APP_BASE_URL: z.string().url(),
   DATABASE_URL: z.string().min(1),
   BETTER_AUTH_SECRET: z.string().min(16),
@@ -78,15 +78,24 @@ const BUILD_PLACEHOLDERS: Record<string, string> = {
 
 let cached: Env | null = null;
 
+/**
+ * Valida un entorno contra el esquema SIN lanzar ni cachear. Es lo que usa
+ * `getEnv()` y también `pnpm doctor` (scripts/doctor.ts): un solo esquema y
+ * una sola regla para los strings vacíos, que cuentan como ausentes porque
+ * los compose/paneles suelen inyectar VAR="" para opcionales y eso debe
+ * activar los defaults.
+ */
+export function safeParseEnv(source: Record<string, string | undefined>) {
+  return envSchema.safeParse(stripEmpty(source));
+}
+
 export function getEnv(): Env {
   if (cached) return cached;
   const isBuild = process.env.NEXT_PHASE === "phase-production-build";
-  // Los strings vacíos cuentan como ausentes: los compose/paneles suelen
-  // inyectar VAR="" para opcionales y eso debe activar los defaults.
   const source = isBuild
     ? { ...BUILD_PLACEHOLDERS, ...stripEmpty(process.env) }
-    : stripEmpty(process.env);
-  const parsed = envSchema.safeParse(source);
+    : process.env;
+  const parsed = safeParseEnv(source);
   if (!parsed.success) {
     const missing = parsed.error.issues
       .map((i) => `${i.path.join(".")}: ${i.message}`)
@@ -100,7 +109,7 @@ export function getEnv(): Env {
   return cached;
 }
 
-function stripEmpty(env: NodeJS.ProcessEnv): Record<string, string> {
+function stripEmpty(env: Record<string, string | undefined>): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [k, v] of Object.entries(env)) {
     if (v !== undefined && v !== "") out[k] = v;

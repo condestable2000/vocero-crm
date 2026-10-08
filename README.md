@@ -249,9 +249,19 @@ variante que construye desde el repositorio.
 
 ```bash
 git clone https://github.com/kevinrivm/vocero-crm.git vocero && cd vocero
-cp .env.example .env    # rellena: dominio + secretos (cada uno trae su comando openssl)
+pnpm install && pnpm init-env --domain crm.tudominio.com   # crea .env con los secretos ya generados
+pnpm doctor                                                 # revisa el .env antes de arrancar
 docker compose up -d
 ```
+
+`pnpm init-env` crea el `.env` a partir de `.env.example` con todos los
+secretos generados (nunca pisa uno existente); sin `--domain` deja
+`DOMAIN=localhost` para probar en la misma máquina. Necesita Node 22 y pnpm
+(`corepack enable`); sin ellos en el VPS, `cp .env.example .env` y rellena a
+mano (cada variable trae su comando `openssl`). `pnpm doctor` valida las
+variables con el mismo esquema que el arranque, prueba la base de datos, el
+directorio de adjuntos y, si ya hay un número conectado, el token de WhatsApp:
+cada ✗ sale con el comando que la arregla, y nunca imprime un secreto.
 
 `docker-compose.yml` declara las dos cosas: la imagen publicada (`image`) y el
 código (`build: .`). Sin `pull_policy`, la
@@ -495,7 +505,8 @@ base64 (44 caracteres): `openssl rand -base64 32`.
 `DATABASE_URL` apunta mal o alguna variable obligatoria no pasa la
 validación (p. ej. una `ENCRYPTION_KEY` mal generada): el healthcheck
 responde 503 en los tres casos. Revisa los logs (`docker compose logs app`); el de arranque nombra la
-variable que falló.
+variable que falló. Desde el repo, `pnpm doctor` revisa las tres cosas y dice
+cómo arreglar cada una.
 
 **Subir el logo o el icono da error, o los adjuntos no se ven** — La app no
 puede escribir en `MEDIA_DIR` (`/data/media` en la imagen), y el log de
