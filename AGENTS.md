@@ -93,7 +93,7 @@ Apagada, cada superficie responde 404 (no 403). El despliegue en producción est
 | `whatsapp/` | Credenciales cifradas, prueba de conexión y suscripción del webhook, media, plantillas | `credentials.ts`, `connect.ts`, `media.ts`, `templates.ts` |
 | `zernio/` | Transporte y firma de la API unificada de Zernio; reparte cada evento al canal que toca | `index.ts`, `dispatch.ts` |
 
-Sueltos: `contacts.ts` (serialización), `contact-source.ts` (fuente del prospecto), `branding.ts` (marca guardada en la organización).
+Sueltos: `contacts.ts` (serialización), `contact-source.ts` (fuente del prospecto), `branding.ts` (marca guardada en la organización), `health.ts` (lo que responde `/api/health`: BD, versión, banderas activas, `mediaWritable`), `media-dir.ts` (sondeo de escritura de `MEDIA_DIR`, cacheado 60 s; lo comparten el arranque y el health).
 
 ### El resto
 
@@ -105,7 +105,7 @@ Sueltos: `contacts.ts` (serialización), `contact-source.ts` (fuente del prospec
 | `src/app/api/` | Route handlers: `auth/[...all]` (Better Auth) · `conversations`, `contacts`, `pipeline`, `kb`, `agent`, `lab`, `templates`, `analytics`, `bookings`, `calendar`, `media`, `branding`, `seed` (sesión + organización) · `settings/*` (WhatsApp, webhook, marca, equipo, capi, zoom, google, instagram, messenger) · `bot/*` (X-API-Key) · `webhooks/{wa,ig,messenger}/[webhookToken]` (públicos) · `events` (SSE) · `health` · `dev/*` (mocks, 404 en producción) |
 | `tests/` | `unit/*.test.ts` (Vitest sin base de datos: módulos puros, guardarraíles que escanean `src/`, contratos) y `e2e/*.md` (guiones por historia con criterios de aceptación) |
 | `scripts/` | `e2e-*.mjs` (arneses de los guiones), `migrate.mjs` (migrador del contenedor), `seed/demo.ts`, `reset-password.mjs` (imprime el `UPDATE`, no toca la BD), `screenshots.mjs` |
-| `drizzle/` | `0000…0014_*.sql` + `meta/` (snapshots y `_journal.json`). Se genera, nunca se edita a mano |
+| `drizzle/` | `0000…0014_*.sql` + `meta/` (snapshots y `_journal.json`). Se genera, nunca se edita a mano. A la imagen viajan solo los `.sql` y `_journal.json`: el migrador no abre los snapshots (`.dockerignore`) |
 | `specs/` | Specs por feature (001, 002, 003, 014–019) con sus contratos; `specs/README.md` explica qué hay y qué no |
 | `docs/` | ADR-001/002, `agenda-conectores.md`, `atribucion-capi.md`, capturas del README. (`getting-started.md`, `sdd-workflow.md`, `three-agent-architecture.md` y `mcp-setup.md` describen el starter de Claude Code, no Vocero) |
 
@@ -157,7 +157,7 @@ Documentación: README («Trae tu propio agente»), guion `tests/e2e/us-bot-api.
 
 **Webhooks de entrada** — `GET`/`POST /api/webhooks/wa/[token]` (contrato en `specs/001-vocero-core/contracts/webhook.md`); `/api/webhooks/ig/[token]` y `/api/webhooks/messenger/[token]` aceptan Meta o Zernio por la misma URL y existen solo con su canal en `CHANNELS` (specs 014 y 017). Siempre 200 tras validar; el procesamiento es asíncrono.
 
-**`GET /api/health`** — `{"ok":true,"version":"X.Y.Z","commit":"…","commitVerified":true|false}`; 503 `db_unavailable` sin base. **`GET /api/events`** — SSE autenticado por sesión (`specs/001-vocero-core/contracts/sse.md`). La API interna (`specs/001-vocero-core/contracts/api.md`) no es contrato público: la consume solo la UI de este repo.
+**`GET /api/health`** — `{"ok":true,"version":"X.Y.Z","commit":"…","commitVerified":true|false,"features":{"agenda":bool,"channels":["whatsapp",…],"atribucion":bool},"mediaWritable":bool}`; 503 `db_unavailable` sin base. `features` sale de las mismas banderas que deciden los 404 (`AGENDA`, `CHANNELS`, `ATRIBUCION`); `mediaWritable: false` no baja `ok` ni el código. **`GET /api/events`** — SSE autenticado por sesión (`specs/001-vocero-core/contracts/sse.md`). La API interna (`specs/001-vocero-core/contracts/api.md`) no es contrato público: la consume solo la UI de este repo.
 
 ## Cómo contribuir
 

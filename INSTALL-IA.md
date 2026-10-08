@@ -92,7 +92,9 @@ cada uno está en `.env.example`): `META_APP_SECRET`, `BOT_API_KEY` y
 6. **Despliega** y espera el healthcheck verde (`/api/health`; el start-period
    cubre las migraciones).
 7. **Verifica**: `https://<dominio>/api/health` responde
-   `{"ok":true,"version":"1.4.0",…}` y `https://<dominio>/login` carga.
+   `{"ok":true,"version":"1.4.0",…}` y `https://<dominio>/login` carga. Si la
+   respuesta trae `"mediaWritable"` (versiones posteriores a 1.4.0), `true`
+   confirma que el volumen del paso 3 quedó bien montado.
 
 ### Variante: construir desde el código
 
@@ -128,7 +130,8 @@ docker compose up -d
 - El compose ya monta el volumen `vocero_app_data` en `/data` (adjuntos, logo
   e icono): no hay que definir `MEDIA_DIR`.
 - Verifica: `docker compose ps` (tres servicios healthy) y
-  `https://<dominio>/api/health` → `{"ok":true,"version":"1.4.0",…}`.
+  `https://<dominio>/api/health` → `{"ok":true,"version":"1.4.0",…}` (en
+  versiones posteriores a 1.4.0, `"mediaWritable":true` confirma el volumen).
 
 ## Cierre (obligatorio decirlo al usuario)
 
