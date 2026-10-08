@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Megaphone, Search, Sparkles, UserRound, X } from "lucide-react";
+import { Inbox, Megaphone, Search, Sparkles, UserRound, X } from "lucide-react";
 import type { ConversationDto } from "@/lib/types";
 import { etiquetaDeOrigen, titularDeOrigen } from "@/lib/anuncios";
 import { CHANNEL_LABEL, type Channel } from "@/lib/channels";
@@ -10,6 +10,7 @@ import { matchesQuery } from "@/lib/search";
 import { cn } from "@/lib/utils";
 import { ContactAvatar } from "@/components/avatar";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { formatTime, previewText } from "./helpers";
 
 /* Puntos de etapa: los tokens del tema, no hex copiados del tema claro —
@@ -33,7 +34,7 @@ const STAGE_DOT_FALLBACK = "var(--text-3)";
 const FOCO_SEPARADO =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background";
 
-function EmptyState({ onSeeded }: { onSeeded: () => void }) {
+function InboxEmptyState({ onSeeded }: { onSeeded: () => void }) {
   const [seeding, setSeeding] = useState(false);
   const [failed, setFailed] = useState(false);
 
@@ -48,26 +49,25 @@ function EmptyState({ onSeeded }: { onSeeded: () => void }) {
   }
 
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
-      <p className="font-serif text-[21px] italic leading-tight text-foreground">
-        Sin conversaciones todavía
-      </p>
-      <p className="text-xs text-text-3">
-        Cuando alguien escriba a tu número de WhatsApp, su conversación
-        aparecerá aquí en tiempo real.
-      </p>
-      {!failed && (
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={seeding}
-          onClick={() => void seed()}
-        >
-          <Sparkles className="h-4 w-4" strokeWidth={1.7} />
-          {seeding ? "Cargando demo…" : "Cargar datos de demostración"}
-        </Button>
-      )}
-    </div>
+    <EmptyState
+      icon={Inbox}
+      className="h-full"
+      title="Sin conversaciones todavía"
+      description="Cuando alguien escriba a tu número de WhatsApp, su conversación aparecerá aquí en tiempo real."
+      action={
+        !failed && (
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={seeding}
+            onClick={() => void seed()}
+          >
+            <Sparkles className="h-4 w-4" strokeWidth={1.7} />
+            {seeding ? "Cargando demo…" : "Cargar datos de demostración"}
+          </Button>
+        )
+      }
+    />
   );
 }
 
@@ -274,7 +274,7 @@ export function ConversationList({
         {loading ? (
           <p className="p-6 text-center text-xs text-text-3">Cargando…</p>
         ) : conversations.length === 0 ? (
-          <EmptyState onSeeded={onSeeded} />
+          <InboxEmptyState onSeeded={onSeeded} />
         ) : visible.length === 0 ? (
           <p className="p-6 text-center text-xs text-text-3">
             Sin resultados para este filtro.
