@@ -1,6 +1,7 @@
 # ============================================================
 # Vocero CRM — Ruta B: app + Postgres + Caddy (HTTPS automático)
-# Uso:        cp .env.example .env  →  rellenar  →  docker compose up -d
+# Uso:        pnpm init-env --domain tu.dominio  →  pnpm doctor  →  docker compose up -d
+#             (sin Node: cp .env.example .env y rellenar a mano)
 # Actualizar: git pull  →  docker compose up -d
 #
 # La app sale de la imagen publicada de la versión (una por tag vX.Y.Z). Con

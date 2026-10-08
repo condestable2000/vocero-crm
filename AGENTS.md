@@ -34,7 +34,8 @@ de skills, scripts ni plugins de ningún asistente.
 ```bash
 pnpm install
 docker compose -f docker-compose.dev.yml up -d postgres   # Postgres local
-cp .env.example .env                                       # rellena los REEMPLAZA_...
+pnpm init-env                                              # crea .env con los secretos generados (DATABASE_URL apunta a `postgres`: cámbialo a localhost para pnpm dev)
+pnpm doctor                                                # valida el entorno y prueba la base
 pnpm db:migrate                                            # aplica drizzle/ en desarrollo
 pnpm dev                                                   # http://localhost:3000
 ```
@@ -45,6 +46,8 @@ pnpm dev                                                   # http://localhost:30
 | `pnpm test:e2e` | `scripts/e2e-selftest.mjs` contra la app viva con mocks. `test:e2e:calendario` y `test:e2e:resultados` conducen sus guiones; el resto de `scripts/e2e-*.mjs` se corre con `node --env-file=.env scripts/<nombre>.mjs` |
 | `pnpm db:generate` | Genera una migración nueva en `drizzle/` a partir de `src/lib/db/schema.ts` |
 | `pnpm seed:demo` | Carga la Ferretería El Martillo (también desde la UI al primer arranque) |
+| `pnpm init-env [--domain x]` | Crea `.env` desde `.env.example` con los secretos generados y `DOMAIN=localhost` (o el dominio dado); nunca pisa uno existente. Lógica en `src/server/doctor/init-env.ts` |
+| `pnpm doctor` | Una línea ✓/✗ por comprobación con el arreglo exacto: variables (mismo esquema zod de `src/lib/env.ts`), `select 1` a `DATABASE_URL`, escritura en `MEDIA_DIR` y, si hay número conectado, el token contra Meta. Sale con 1 si algo obligatorio falla. Lógica en `src/server/doctor/checks.ts` |
 
 Variables obligatorias (`src/lib/env.ts` las valida en el primer uso; cada una trae su comando `openssl` en `.env.example`):
 

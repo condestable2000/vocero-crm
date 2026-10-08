@@ -93,6 +93,9 @@ Ver [.specify/memory/constitution.md](.specify/memory/constitution.md).
 
 ## Variables de entorno
 
+`pnpm init-env` crea el `.env` con los secretos ya generados y `pnpm doctor`
+lo valida con el mismo esquema del arranque (`safeParseEnv` en
+`src/lib/env.ts`), prueba la base, `MEDIA_DIR` y el token de WhatsApp.
 Ver `.env.example` (cada una con guía inline). Las claves: `APP_BASE_URL`,
 `DATABASE_URL`, `BETTER_AUTH_SECRET`, `ENCRYPTION_KEY` (32 bytes base64),
 `META_WEBHOOK_VERIFY_TOKEN` (segmento secreto del webhook), `META_APP_SECRET`
