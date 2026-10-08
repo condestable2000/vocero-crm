@@ -5,6 +5,26 @@ sigue el SemVer del [README](README.md#versiones): una menor trae funciones
 nuevas y actualizar es redesplegar. Desde 1.4.0, cada tag `vX.Y.Z` publica la
 imagen `ghcr.io/kevinrivm/vocero-crm:X.Y.Z`.
 
+## Sin publicar — camino a 2.0.0
+
+Lo que ya está en `main` de la sección 2.0.0 del
+[plan](docs/plan-1.5-y-2.0.md). Nada de esto cambia una instalación que no
+toque sus variables.
+
+- **Despacho al cerebro** (#89): con `BRAIN_DISPATCH_URL` y `BOT_API_KEY`, el
+  CRM le pasa cada turno a tu cerebro externo con un `POST` firmado, en vez de
+  que el cerebro reciba el webhook de Meta. Vale para WhatsApp, Instagram y
+  Messenger. Mientras está activo, el agente incluido no contesta; si el
+  cerebro no recibe el turno, la conversación queda con una persona. La
+  tarjeta «Quién responde» y `pnpm doctor` dicen si está activo o qué falta.
+  Contrato en `specs/021-despacho-estandar/contracts/despacho.md`.
+- **Migración `0016_despacho_al_cerebro`**: crea la tabla `dispatch`. Aditiva;
+  corre sola al arrancar y queda vacía si no usas el despacho.
+- Si ya tienes Nea delante del CRM, **no pongas `BRAIN_DISPATCH_URL` todavía**:
+  Nea 1.x recibe el webhook por su cuenta y le llegaría cada mensaje dos
+  veces. El despacho es para la Nea que lo reciba
+  ([nea-agent#37](https://github.com/kevinrivm/nea-agent/issues/37)).
+
 ## 1.5.0 — 2026-10-08
 
 Primera versión del plan [docs/plan-1.5-y-2.0.md](docs/plan-1.5-y-2.0.md):

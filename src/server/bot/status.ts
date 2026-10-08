@@ -1,5 +1,7 @@
 import {
   BRAIN_MODES,
+  SIN_DESPACHO,
+  type BrainDispatchDto,
   type BrainHealthDto,
   type BrainMode,
   type BrainRelayDto,
@@ -17,6 +19,10 @@ import {
  * cliente recibe dos respuestas distintas. El CRM no sabe de Nea más que dos
  * cosas: cuándo llamó por última vez a `/api/bot/*` y, si se configuró
  * `BRAIN_HEALTH_URL`, qué dice su `/health`.
+ *
+ * 021 — Con el despacho activo (`BRAIN_DISPATCH_URL`) ya no hay que adivinar:
+ * el CRM le empuja cada turno al cerebro y calla al agente incluido, así que
+ * la doble respuesta no puede salir de aquí.
  */
 
 /** Una llamada a `/api/bot/*` en esta ventana cuenta como «está contestando». */
@@ -69,16 +75,23 @@ export type BrainStatusInput = {
   botKeyConfigured: boolean;
   lastSeenAt: Date | null;
   health: BrainHealthDto | null;
+  /** 021. Opcional: sin él, una instancia que no despacha. */
+  dispatch?: BrainDispatchDto;
   now: Date;
 };
 
 export function computeBrainStatus(input: BrainStatusInput): BrainStatusDto {
-  const answering = input.aiConfigured && input.agentEnabled;
+  const dispatch = input.dispatch ?? SIN_DESPACHO;
+  // El despacho activo calla al agente incluido (`server/ai/trigger.ts`):
+  // aunque tenga IA e interruptor, no es él quien contesta.
+  const wouldAnswer = input.aiConfigured && input.agentEnabled;
+  const answering = wouldAnswer && !dispatch.active;
   const seenRecently =
     input.botKeyConfigured &&
     input.lastSeenAt !== null &&
     input.now.getTime() - input.lastSeenAt.getTime() <= EXTERNAL_SEEN_WINDOW_MS;
-  const active = seenRecently || input.health?.reachable === true;
+  const active =
+    seenRecently || input.health?.reachable === true || dispatch.active;
 
   let warning: BrainWarning | null = null;
   if (answering && active) warning = "doble_respuesta";
@@ -91,6 +104,7 @@ export function computeBrainStatus(input: BrainStatusInput): BrainStatusDto {
       configured: input.aiConfigured,
       enabled: input.agentEnabled,
       answering,
+      silenced: wouldAnswer && dispatch.active,
     },
     external: {
       keyConfigured: input.botKeyConfigured,
@@ -98,6 +112,7 @@ export function computeBrainStatus(input: BrainStatusInput): BrainStatusDto {
       active,
       health: input.health,
     },
+    dispatch,
     warning,
   };
 }

@@ -1,10 +1,12 @@
 "use client";
 
-import { AlertTriangle, Cable, Info, Sparkles, type LucideIcon } from "lucide-react";
+import { AlertTriangle, Cable, Info, Send, Sparkles, type LucideIcon } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
+  despachoFallando,
   externalBrainName,
   haceCuanto,
+  type BrainDispatchDto,
   type BrainHealthDto,
   type BrainRelayDto,
   type BrainStatusDto,
@@ -16,6 +18,10 @@ import { cn } from "@/lib/utils";
  * el interruptor de esta página solo gobierna al agente incluido. Un cerebro
  * externo (Nea) contesta por su cuenta, y con los dos activos el cliente
  * recibe dos respuestas distintas.
+ *
+ * 021 — Con el despacho (`BRAIN_DISPATCH_URL`) el CRM le pasa cada turno al
+ * cerebro y calla al agente incluido: la tercera fila dice a quién, cuándo
+ * llegó el último y si alguno no llegó.
  */
 
 type Tone = "ok" | "warn" | "off";
@@ -77,6 +83,15 @@ export function BrainStatusCard({
             hint="Tu propio bot (Nea u otro) por la API del CRM."
             view={externalView(status, now)}
           />
+          {(status.dispatch.host !== null || status.dispatch.problem !== null) && (
+            <BrainRow
+              id="dispatch"
+              icon={Send}
+              label="Despacho al cerebro"
+              hint="El CRM le pasa cada turno; el webhook no sale de aquí."
+              view={dispatchView(status.dispatch, now)}
+            />
+          )}
         </dl>
 
         {lastSeenAt && (
@@ -95,6 +110,17 @@ function embeddedView(s: BrainStatusDto): RowView {
   const headline = `${enabled ? "Encendido" : "Apagado"} · ${
     configured ? "IA configurada" : "sin proveedor de IA"
   }`;
+  // Con el despacho activo no contesta, esté como esté: va antes que todo lo
+  // demás para no pedir un proveedor de IA que no hace falta.
+  if (s.dispatch.active) {
+    return {
+      tone: "off",
+      headline,
+      detail: enabled
+        ? "En silencio: los turnos se le pasan a tu cerebro externo. Puedes dejarlo apagado."
+        : "Así debe quedarse mientras conteste tu cerebro externo.",
+    };
+  }
   if (enabled && !configured) {
     return { tone: "warn", headline, detail: "No contesta: falta el proveedor de IA, o está pausado (Ajustes → IA)." };
   }
@@ -166,6 +192,42 @@ function externalView(s: BrainStatusDto, now: number): RowView {
     return { tone: active ? "ok" : "off", headline: `Llave configurada · ${llamada}`, detail: null };
   }
   return { tone: "off", headline: "Sin cerebro externo", detail: null };
+}
+
+function dispatchView(d: BrainDispatchDto, now: number): RowView {
+  const mientras = "Mientras tanto contesta el agente incluido, si está encendido.";
+  if (d.problem === "url") {
+    return {
+      tone: "warn",
+      headline: "No se puede despachar",
+      detail: `BRAIN_DISPATCH_URL no es una URL http:// o https:// válida, o lleva usuario y clave (p. ej. http://nea:8000/vocero/dispatch): corrígela y vuelve a desplegar el CRM. ${mientras}`,
+    };
+  }
+  if (d.problem === "sin_llave") {
+    return {
+      tone: "warn",
+      headline: "No se puede despachar",
+      detail: `Falta BOT_API_KEY (mínimo 16 caracteres): con ella se firma cada turno y contesta el cerebro. ${mientras}`,
+    };
+  }
+  const espera =
+    d.pending > 0
+      ? ` ${d.pending === 1 ? "1 turno en espera" : `${d.pending} turnos en espera`}.`
+      : "";
+  if (d.lastFailure && despachoFallando(d)) {
+    return {
+      tone: "warn",
+      headline: `Activo · ${d.host} · el último turno no llegó`,
+      detail: `${capitalize(d.lastFailure.detail)} (${haceCuanto(d.lastFailure.at, now)}). Tras tres intentos fallidos, la conversación queda con una persona.${espera}`,
+    };
+  }
+  return {
+    tone: "ok",
+    headline: `Activo · ${d.host}`,
+    detail: d.lastDeliveredAt
+      ? `Último turno entregado ${haceCuanto(d.lastDeliveredAt, now)}.${espera}`
+      : `Aún no se ha despachado ningún turno.${espera}`,
+  };
 }
 
 function versionLabel(v: string): string {

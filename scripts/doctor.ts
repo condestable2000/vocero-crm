@@ -15,6 +15,7 @@ import path from "node:path";
 import { getSql } from "@/lib/db";
 import {
   checkAi,
+  checkDispatch,
   checkDatabase,
   checkMediaDir,
   checkWhatsApp,
@@ -80,6 +81,7 @@ if (!env) {
     ]);
   }
   section("IA (opcional)", [checkAi(env)]);
+  section("Cerebro externo (opcional)", [checkDispatch(process.env)]);
 }
 
 const s = summarize(all);

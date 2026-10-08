@@ -1,8 +1,9 @@
 import { createServer, type IncomingMessage, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import type { BrainHealthDto } from "@/lib/brain-status";
+import type { BrainDispatchDto, BrainHealthDto } from "@/lib/brain-status";
 import {
+  SIN_DESPACHO,
   externalAnswerLabel,
   externalAnswering,
   externalBrainName,
@@ -60,10 +61,65 @@ function status(over: Partial<BrainStatusInput>) {
   });
 }
 
+const DESPACHANDO: BrainDispatchDto = {
+  ...SIN_DESPACHO,
+  active: true,
+  host: "nea:8000",
+};
+
+describe("computeBrainStatus — con el despacho (021)", () => {
+  it("sin despacho, la llave nueva es la de una instancia que no despacha", () => {
+    expect(status({}).dispatch).toEqual(SIN_DESPACHO);
+  });
+
+  it("activo: calla al agente incluido aunque tenga IA e interruptor, y no hay doble respuesta", () => {
+    const s = status({
+      aiConfigured: true,
+      agentEnabled: true,
+      botKeyConfigured: true,
+      lastSeenAt: HACE_3_MIN,
+      health: EN_LINEA,
+      dispatch: DESPACHANDO,
+    });
+    expect(s.embedded).toEqual({ configured: true, enabled: true, answering: false, silenced: true });
+    expect(s.external.active).toBe(true);
+    expect(s.warning).toBeNull();
+    expect(s.dispatch).toEqual(DESPACHANDO);
+  });
+
+  it("activo y sin una sola llamada todavía: el cerebro cuenta como el que contesta", () => {
+    const s = status({ botKeyConfigured: true, dispatch: DESPACHANDO });
+    expect(s.external.active).toBe(true);
+    expect(s.embedded.silenced).toBe(false);
+    expect(s.warning).toBeNull();
+    expect(externalAnswering(s)).toBe(true);
+  });
+
+  it("activo pero con el /health caído: sigue sin aviso de doble respuesta, y se ve caído", () => {
+    const s = status({
+      aiConfigured: true,
+      agentEnabled: true,
+      botKeyConfigured: true,
+      health: CAIDA,
+      dispatch: DESPACHANDO,
+    });
+    expect(s.warning).toBeNull();
+    expect(externalDown(s)).toBe(true);
+  });
+
+  it("mal configurado NO calla al agente incluido: todo sigue como en 1.5", () => {
+    const roto: BrainDispatchDto = { ...SIN_DESPACHO, host: "nea:8000", problem: "sin_llave" };
+    const s = status({ aiConfigured: true, agentEnabled: true, dispatch: roto });
+    expect(s.embedded).toEqual({ configured: true, enabled: true, answering: true, silenced: false });
+    expect(s.external.active).toBe(false);
+    expect(s.dispatch.problem).toBe("sin_llave");
+  });
+});
+
 describe("computeBrainStatus — los casos que ve el dueño", () => {
   it("solo Nea: llave usada hace 3 min, agente incluido apagado → sin aviso", () => {
     const s = status({ botKeyConfigured: true, lastSeenAt: HACE_3_MIN, health: EN_LINEA });
-    expect(s.embedded).toEqual({ configured: false, enabled: false, answering: false });
+    expect(s.embedded).toEqual({ configured: false, enabled: false, answering: false, silenced: false });
     expect(s.external.active).toBe(true);
     expect(s.external.lastSeenAt).toBe(HACE_3_MIN.toISOString());
     expect(s.warning).toBeNull();
@@ -94,7 +150,7 @@ describe("computeBrainStatus — los casos que ve el dueño", () => {
 
   it("el interruptor encendido sin token NO contesta", () => {
     const s = status({ agentEnabled: true });
-    expect(s.embedded).toEqual({ configured: false, enabled: true, answering: false });
+    expect(s.embedded).toEqual({ configured: false, enabled: true, answering: false, silenced: false });
     expect(s.warning).toBe("sin_cerebro");
   });
 

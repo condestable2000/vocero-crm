@@ -31,6 +31,8 @@ const prefixes = {
   capiSettings: "capi",
   // Ajustes → IA (issue #85)
   aiCredentials: "aicred",
+  // 021 — despacho al cerebro
+  dispatch: "dsp",
 } as const;
 
 export type IdKind = keyof typeof prefixes;
