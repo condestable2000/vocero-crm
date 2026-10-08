@@ -12,7 +12,12 @@ import {
   type AccentSet,
   type Branding,
 } from "@/lib/branding";
-import { CURRENCIES, DEFAULT_CURRENCY, type Currency } from "@/lib/money";
+import {
+  CURRENCY_GROUPS,
+  CURRENCY_OPTIONS,
+  DEFAULT_CURRENCY,
+  type Currency,
+} from "@/lib/money";
 import { cn } from "@/lib/utils";
 import { useResolvedTheme } from "@/components/use-theme";
 import { BrandLogo } from "@/components/brand-mark";
@@ -132,10 +137,14 @@ export function BrandingClient({
               onChange={(e) => setCurrency(e.target.value as Currency)}
               className="h-9 max-w-xs rounded-md border border-input bg-card px-2 text-sm"
             >
-              {CURRENCIES.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
+              {CURRENCY_GROUPS.map((g) => (
+                <optgroup key={g.id} label={g.label}>
+                  {CURRENCY_OPTIONS.filter((c) => c.group === g.id).map((c) => (
+                    <option key={c.code} value={c.code}>
+                      {c.code} · {c.name} ({c.where})
+                    </option>
+                  ))}
+                </optgroup>
               ))}
             </select>
             <p className="text-xs text-text-3">
