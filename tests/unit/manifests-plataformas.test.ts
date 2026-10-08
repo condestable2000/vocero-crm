@@ -20,7 +20,10 @@ const pkg = JSON.parse(
 ) as { version: string };
 const IMAGEN = `ghcr.io/kevinrivm/vocero-crm:${pkg.version}`;
 
-const leer = (nombre: string) => readFileSync(path.join(RAIZ, nombre), "utf8");
+// Un checkout de Windows con autocrlf deja CRLF: se normaliza para que las
+// expresiones con `\n` lean lo mismo en cualquier máquina.
+const leer = (nombre: string) =>
+  readFileSync(path.join(RAIZ, nombre), "utf8").replace(/\r\n?/g, "\n");
 /** Solo lo que la plataforma lee: sin las líneas de comentario. */
 const sinComentarios = (texto: string) =>
   texto
