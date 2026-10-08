@@ -1,4 +1,3 @@
-import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import postgres from "postgres";
 import type { ZodIssue } from "zod";
@@ -6,6 +5,7 @@ import { getDb, PG_CONNECTION_OPTIONS, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
 import { envSchema, safeParseEnv, type Env } from "@/lib/env";
 import { GENERATED_SECRETS, PLACEHOLDER_PREFIX } from "@/server/doctor/init-env";
+import { probeMediaDir } from "@/server/media-dir";
 import { testConnection, type ConnectionCheck } from "@/server/whatsapp/connect";
 import {
   getCredentialsByOrg,
@@ -146,7 +146,7 @@ export type EnvEvaluation = { results: CheckResult[]; env: Env | null };
  * devuelve una línea por variable obligatoria, más una por cada opcional que
  * tenga un problema (también tumban el arranque) o siga con su placeholder.
  */
-export function evaluateEnv(source: NodeJS.ProcessEnv): EnvEvaluation {
+export function evaluateEnv(source: Record<string, string | undefined>): EnvEvaluation {
   const parsed = safeParseEnv(source);
   const issues = new Map<string, ZodIssue>();
   if (!parsed.success) {
@@ -179,7 +179,7 @@ export function evaluateEnv(source: NodeJS.ProcessEnv): EnvEvaluation {
 /** Variables que no lee la app pero sí docker-compose.yml (Ruta B). */
 export const COMPOSE_ONLY_KEYS = ["DOMAIN", "POSTGRES_PASSWORD"] as const;
 
-export function evaluateComposeEnv(source: NodeJS.ProcessEnv): CheckResult[] {
+export function evaluateComposeEnv(source: Record<string, string | undefined>): CheckResult[] {
   const results: CheckResult[] = [];
   for (const key of COMPOSE_ONLY_KEYS) {
     const value = source[key];
@@ -319,24 +319,22 @@ export function describeDbError(err: unknown, url: string): CheckResult {
 
 /* ---------- Adjuntos ---------- */
 
-/** La misma prueba que hace la app al arrancar (instrumentation-node.ts): escribir de verdad. */
+/**
+ * El mismo sondeo que hacen el arranque y `/api/health` (`mediaWritable`,
+ * #82): escribir de verdad y borrar el rastro. Sin caché: aquí se quiere la
+ * respuesta de ahora.
+ */
 export async function checkMediaDir(dir: string): Promise<CheckResult> {
-  const abs = path.resolve(dir);
-  const probe = path.join(abs, `.prueba-escritura-${process.pid}`);
-  try {
-    await mkdir(abs, { recursive: true });
-    await writeFile(probe, "");
-    await rm(probe, { force: true }).catch(() => {});
-    return { status: "ok", label: "MEDIA_DIR", detail: `${abs} es escribible` };
-  } catch (err) {
-    const code = (err as NodeJS.ErrnoException | null)?.code ?? String(err);
-    return {
-      status: "fail",
-      label: "MEDIA_DIR",
-      detail: `${abs} no es escribible (${code}): adjuntos, logo e icono no se podrían guardar`,
-      fix: "fuera de Docker: apunta MEDIA_DIR a un directorio escribible (o quítala: el default es ./.dev-media). En Docker no la definas: la imagen usa /data/media y docker compose monta el volumen en /data",
-    };
+  const media = await probeMediaDir(path.resolve(dir));
+  if (media.writable) {
+    return { status: "ok", label: "MEDIA_DIR", detail: `${media.dir} es escribible` };
   }
+  return {
+    status: "fail",
+    label: "MEDIA_DIR",
+    detail: `${media.dir} no es escribible (${media.code}): adjuntos, logo e icono no se podrían guardar`,
+    fix: "fuera de Docker: apunta MEDIA_DIR a un directorio escribible (o quítala: el default es ./.dev-media). En Docker no la definas: la imagen usa /data/media y docker compose monta el volumen en /data",
+  };
 }
 
 /* ---------- WhatsApp (Meta) ---------- */
