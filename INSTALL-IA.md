@@ -17,6 +17,11 @@ una etiqueta por versión, `linux/amd64`, escucha en el puerto `3000`).
 `Dockerfile` en la raíz). Hace falta para la Ruta B y para construir desde el
 código.
 
+**Render, Fly o Railway**: este guion es para Coolify y docker compose. Para
+esas plataformas hay un manifest por cada una en la raíz del repo
+(`render.yaml`, `fly.toml`, `railway.toml`), con lo que queda a mano escrito
+dentro: README → «Instalación» → «Otras plataformas».
+
 ## Reglas para el asistente
 
 1. Pregunta al usuario ÚNICAMENTE estas tres cosas, en un solo mensaje:
