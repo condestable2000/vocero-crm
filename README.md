@@ -530,8 +530,18 @@ La versión que está corriendo se ve **abajo en la barra lateral** (`v1.1.0 ·
 
 ```bash
 curl -s https://crm.tudominio.com/api/health
-# {"ok":true,"version":"1.1.0","commit":"8e62d0b","commitVerified":true}
+# {"ok":true,"version":"1.1.0","commit":"8e62d0b","commitVerified":true,
+#  "features":{"agenda":false,"channels":["whatsapp"],"atribucion":false},
+#  "mediaWritable":true}
 ```
+
+`features` dice qué banderas de despliegue están encendidas en esta instancia
+(`AGENDA`, `CHANNELS`, `ATRIBUCION`): es la forma de confirmar que la variable
+llegó al contenedor sin iniciar sesión. `mediaWritable` dice si `MEDIA_DIR`
+(el volumen `/data`) se puede escribir; con `false` el CRM sigue respondiendo
+`ok` (funciona sin adjuntos), pero el logo, el icono y los adjuntos no se van
+a guardar: revisa el volumen. Ese sondeo escribe de verdad y se recuerda un
+minuto, así que el healthcheck no toca el disco en cada llamada.
 
 La versión sale de `package.json` y se congela al **construir**. El commit,
 solo si llega **al build**. La imagen publicada ya lo trae (se construye con
