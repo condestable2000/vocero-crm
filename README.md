@@ -280,13 +280,64 @@ código si no la encuentra ni en el registro ni en tu máquina. Así que:
 Caddy emite el certificado HTTPS solo. Verifica con
 `https://crm.tudominio.com/api/health` → `{"ok":true,"version":"1.4.0",…}`.
 
+### Otras plataformas: Render, Fly y Railway
+
+Hay un manifest por plataforma en la raíz del repo. Los tres corren la misma
+imagen publicada, montan `/data` y vigilan `/api/health`; cada uno declara lo
+que su plataforma le deja declarar y documenta, en comentarios, lo que queda a
+mano. La imagen va fijada a la versión (una prueba lo exige). Verifica igual
+que arriba: `curl -s https://<tu-url>/api/health` →
+`{"ok":true,"version":"1.4.0",…,"mediaWritable":true}`.
+
+**Render** — [`render.yaml`](render.yaml) es un Blueprint completo: servicio
+web desde la imagen, base Postgres gestionada, disco de 1 GB en `/data`,
+healthcheck y variables obligatorias; `BETTER_AUTH_SECRET` y `ENCRYPTION_KEY`
+las genera Render (256 bits en base64: justo los 32 bytes que pide la clave)
+y `APP_BASE_URL` sale de la URL `.onrender.com` del servicio. Se aplica con
+**New → Blueprint** sobre tu fork o con el botón de abajo. Queda a mano:
+`META_WEBHOOK_VERIFY_TOKEN` cuando Render lo pida (`openssl rand -hex 32`:
+Render genera base64, con `/`, y el token es un segmento de la URL del
+webhook), el token de OpenRouter y, con dominio propio, `APP_BASE_URL`. El
+disco exige plan de pago (`starter` + `basic-256mb`; la base `free` caduca a
+los 30 días).
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/kevinrivm/vocero-crm)
+
+**Fly.io** — [`fly.toml`](fly.toml) declara imagen, volumen `/data`, puerto
+3000, healthcheck, tamaño de máquina y las variables no secretas; Fly no deja
+poner en el archivo ni secretos ni la base. Queda a mano, una vez, con los
+comandos exactos escritos en el propio `fly.toml`: `fly apps create`,
+`fly volumes create`, `fly postgres create` + `fly postgres attach` (deja
+`DATABASE_URL`), `fly secrets set` con los tres secretos y
+`fly deploy --ha=false`. Ese Postgres es el no gestionado (barato; Fly ya no
+lo mantiene): el gestionado es `fly mpg create` + `fly mpg attach`. La máquina
+no se apaga sola a propósito: el agente y el Laboratorio corren dentro del
+proceso.
+
+**Railway** — [`railway.toml`](railway.toml) solo puede declarar el build
+(Dockerfile), el healthcheck y la política de reinicio; la base, el volumen,
+el dominio y las variables se crean con la CLI, con los comandos exactos
+escritos en el propio archivo (`railway add --database postgres`,
+`railway volume add --mount-path /data`, `railway domain --port 3000`,
+`railway variable set …`, `railway up`). Para la imagen publicada sin build:
+`railway add --image ghcr.io/kevinrivm/vocero-crm:1.4.0`, y entonces el
+healthcheck se fija en el panel. Railway declaró obsoleto este formato a
+favor de su Infrastructure as Code (`.railway/railway.ts`); lo sigue leyendo
+hasta el 2026-12-01.
+
+Vercel y similares siguen fuera hasta 2.0: adjuntos en disco, trabajo en
+segundo plano y SSE en memoria.
+
 ### Actualizar
 
 Antes, lee en [`CHANGELOG.md`](CHANGELOG.md) la sección «Actualizar desde…» de
 la versión nueva. Con docker compose: `git pull` y `docker compose up -d` (con
 `--build` si tu fork tiene cambios propios). En Coolify: cambia la etiqueta de
 la imagen a la versión nueva y redespliega; si construyes desde el
-repositorio, redespliega. Las migraciones corren solas al arrancar.
+repositorio, redespliega. Con los manifests: cambia la etiqueta de la imagen
+en el archivo (Render sincroniza el Blueprint; Fly, `fly deploy`; Railway
+construye desde el código: `git pull` y `railway up`). Las migraciones corren
+solas al arrancar.
 
 ### Primer arranque
 
@@ -585,8 +636,9 @@ SemVer sobre lo que le importa a quien opera una instancia:
 | **Parche** (`1.1.1`) | Arreglos y ajustes. Actualizar es redesplegar. |
 
 La versión vive en `package.json` y se sube en el PR que publica el cambio,
-junto con el default de `VOCERO_CRM_VERSION` en `docker-compose.yml` (una
-prueba exige que coincidan) y su entrada en [`CHANGELOG.md`](CHANGELOG.md),
+junto con el default de `VOCERO_CRM_VERSION` en `docker-compose.yml` y la
+etiqueta de la imagen en `render.yaml`, `fly.toml` y `railway.toml` (dos
+pruebas exigen que coincidan) y su entrada en [`CHANGELOG.md`](CHANGELOG.md),
 que dice qué trae cada versión y qué hacer para actualizar. Al crear el tag
 `vX.Y.Z`, el CI publica la imagen `ghcr.io/kevinrivm/vocero-crm:X.Y.Z`.
 
