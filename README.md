@@ -138,7 +138,7 @@ defines `BRAIN_HEALTH_URL`, p. ej. `http://nea:8000/health`— si está en
 línea, su versión, su modo y cuántos mensajes le faltan por relevar. Los dos
 no se ven entre sí, así que si ambos están activos tu cliente recibe dos
 respuestas: la tarjeta lo marca en rojo y te dice cómo quitarlo (apagar el
-agente incluido o quitar `OPENROUTER_API_TOKEN`).
+agente incluido o quitar la llave en Ajustes → IA).
 
 Agente de referencia: [nea-agent](https://github.com/kevinrivm/nea-agent), MIT.
 
@@ -507,17 +507,33 @@ webhook vive en `/api/webhooks/ig/<token>`. El detalle está en
 
 ## Configuración de la IA
 
-En las variables de la instancia:
+Se hace desde la app, en **Ajustes → IA**: eliges el proveedor (OpenRouter, o
+cualquier API compatible con la de OpenAI con su base URL), el modelo y pegas
+tu llave. «Probar conexión» hace una llamada mínima con lo escrito antes de
+guardar, «Traer modelos» lista los del proveedor, y la ayuda plegable explica
+dónde se consigue la llave. Se guarda cifrada (AES-256-GCM, la misma
+`ENCRYPTION_KEY` que protege el token de WhatsApp) y la pantalla solo enseña
+sus últimos 4.
+
+Si el proveedor rechaza la llave (401) o la cuenta se queda sin saldo (402),
+el agente se pausa solo, un banner lo dice en toda la app y Ajustes → IA
+explica cuál de las dos cosas pasó. Guardar una llave nueva —o «Probar
+conexión» con la guardada después de recargar— lo reactiva. Un 429 o un 500
+del proveedor no pausan nada: son hipos, no problemas de la llave.
+
+Las variables de entorno siguen valiendo como respaldo (instalaciones
+automatizadas, o quien ya las tenía): se usan mientras no haya nada guardado
+en Ajustes → IA, y lo guardado manda sobre ellas.
 
 ```bash
-OPENROUTER_API_TOKEN=sk-or-...        # tu key
+OPENROUTER_API_TOKEN=sk-or-...        # respaldo: tu key
 OPENROUTER_MODEL=anthropic/claude-sonnet-4.5
 OPENROUTER_JUDGE_MODEL=               # opcional: modelo distinto para el juez del Laboratorio
 OPENROUTER_BASE_URL=https://openrouter.ai/api   # o tu proveedor OpenAI-compatible
 ```
 
-Sin token, todo lo demás funciona; Agente y Laboratorio muestran cómo
-activarlos. Después configura el comportamiento y el conocimiento en la
+Sin proveedor, todo lo demás funciona; Agente y Laboratorio enlazan a
+Ajustes → IA. Después configura el comportamiento y el conocimiento en la
 pestaña **Agente** y corre el **Laboratorio** antes de encender el agente con
 clientes reales.
 

@@ -11,6 +11,8 @@ const TABS: Tab[] = [
   { href: "/settings/branding", label: "Marca" },
   { href: "/settings/templates", label: "Plantillas" },
   { href: "/settings/team", label: "Equipo" },
+  // #85 — el proveedor de IA se configura aquí; el entorno queda de respaldo.
+  { href: "/settings/ai", label: "IA" },
 ];
 
 /** 015 — "Agenda" solo existe si esta instancia encendió la bandera. */

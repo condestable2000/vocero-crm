@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -126,9 +127,14 @@ export function LabClient() {
             Configura tu proveedor de IA para usar el Laboratorio
           </p>
           <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
-            El Laboratorio necesita el agente activo: agrega{" "}
-            <code className="rounded bg-secondary px-1">OPENROUTER_API_TOKEN</code> a la
-            instancia y vuelve aquí.
+            El Laboratorio necesita un proveedor de IA activo: configúralo en{" "}
+            <Link
+              href="/settings/ai"
+              className="font-medium text-brand-text underline underline-offset-2"
+            >
+              Ajustes → IA
+            </Link>{" "}
+            y vuelve aquí.
           </p>
         </div>
       </div>

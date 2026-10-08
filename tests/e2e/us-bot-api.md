@@ -157,7 +157,7 @@ de prueba en la URL).
     ni la query de la URL aparecen en la respuesta (a Nea sí le llegan, como
     `Authorization: Basic`). Tres consultas seguidas = cero pedidos nuevos a
     Nea (caché de 15 s).
-43. Con token de IA y el agente incluido encendido → `warning:
+43. Con proveedor de IA (Ajustes → IA o entorno) y el agente incluido encendido → `warning:
     "doble_respuesta"` y el aviso rojo en la tarjeta. Apagarlo lo quita.
 44. Con la Nea falsa colgada: en ≤ 4 s la consulta vuelve con
     `reachable: false`, `problem: "timeout"`; la llamada reciente la sigue

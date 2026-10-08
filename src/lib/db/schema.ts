@@ -1058,3 +1058,51 @@ export const capiSettings = pgTable(
   },
   (t) => [uniqueIndex("capi_settings_org_uq").on(t.organizationId)]
 );
+
+/* ============================================================
+ * Proveedor de IA (Ajustes → IA)
+ * ============================================================ */
+
+/**
+ * Credencial del proveedor de IA de la organización (puerto de `ai_credentials`
+ * de Vocero Cloud, issue #85). Una fila por organización: proveedor (su
+ * `base_url` OpenAI-compatible), modelo y token cifrado con los mismos helpers
+ * que el de WhatsApp; hacia fuera solo `token_last4`.
+ *
+ * `status` lo escribe el adaptador según lo que respondió QUIEN COBRA: 401 →
+ * `paused_invalid_token`, 402 → `paused_no_credit`. Un 429 o un 500 no pausan
+ * (ver `server/ai/credentials.ts`). Guardar un token nuevo vuelve a `active`.
+ *
+ * Sin fila, el adaptador cae a las variables `OPENROUTER_*` del entorno
+ * (respaldo para instalaciones automatizadas); con fila, la fila manda.
+ */
+export const aiCredentials = pgTable(
+  "ai_credentials",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    /** Preset de la UI; `base_url` es lo que de verdad identifica al proveedor. */
+    provider: text("provider", { enum: ["openrouter", "openai_compatible"] })
+      .notNull()
+      .default("openrouter"),
+    baseUrl: text("base_url").notNull(),
+    model: text("model").notNull(),
+    tokenCipher: text("token_cipher").notNull(),
+    tokenIv: text("token_iv").notNull(),
+    tokenTag: text("token_tag").notNull(),
+    /** Lo ÚNICO del token que puede salir hacia el cliente. */
+    tokenLast4: text("token_last4").notNull(),
+    status: text("status", {
+      enum: ["active", "paused_invalid_token", "paused_no_credit"],
+    })
+      .notNull()
+      .default("active"),
+    statusReason: text("status_reason"),
+    statusChangedAt: timestamp("status_changed_at"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("ai_credentials_org_uq").on(t.organizationId)]
+);

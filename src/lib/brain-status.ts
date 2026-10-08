@@ -54,7 +54,8 @@ export type BrainWarning = "doble_respuesta" | "sin_cerebro";
 
 export type BrainStatusDto = {
   embedded: {
-    /** La instancia tiene token de IA (`OPENROUTER_API_TOKEN`). */
+    /** La organización tiene proveedor de IA: lo guardado en Ajustes → IA
+     *  o, de respaldo, `OPENROUTER_API_TOKEN` en el entorno. */
     configured: boolean;
     /** El interruptor del Agente. */
     enabled: boolean;

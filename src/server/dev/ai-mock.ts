@@ -10,6 +10,36 @@ import { CABECERA_HUECOS } from "@/server/agenda/offers";
 
 type InMessage = { role: string; content: string };
 
+/**
+ * Sufijos de la llave que el mock rechaza, con el código que daría el
+ * proveedor real: `-invalid` → 401 (llave rechazada) y `-sin-saldo` → 402.
+ * Es lo que permite ejercitar la pausa de Ajustes → IA en el self-test sin
+ * un proveedor de verdad. Cualquier otra llave se acepta.
+ */
+export function aiMockAuthFailure(
+  authorization: string | null
+): { status: 401 | 402; body: { error: { message: string } } } | null {
+  const token = (authorization ?? "").replace(/^Bearer\s+/i, "").trim();
+  if (token.endsWith("-invalid")) {
+    return { status: 401, body: { error: { message: "Invalid API key (mock)" } } };
+  }
+  if (token.endsWith("-sin-saldo")) {
+    return {
+      status: 402,
+      body: { error: { message: "Insufficient credits (mock)" } },
+    };
+  }
+  return null;
+}
+
+/** La lista de `GET /v1/models` del mock: suficiente para «Traer modelos». */
+export function aiMockModels(): { id: string; name: string }[] {
+  return [
+    { id: "mock/agente", name: "Modelo de prueba (agente)" },
+    { id: "mock/juez", name: "Modelo de prueba (juez)" },
+  ];
+}
+
 export function aiMockCompletion(messages: InMessage[]): string {
   const system = messages.find((m) => m.role === "system")?.content ?? "";
   const lastUser =
