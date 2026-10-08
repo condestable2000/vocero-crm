@@ -1106,3 +1106,81 @@ export const aiCredentials = pgTable(
   },
   (t) => [uniqueIndex("ai_credentials_org_uq").on(t.organizationId)]
 );
+
+/* ============================================================
+ * 021 — Despacho al cerebro
+ * ============================================================ */
+
+/**
+ * El outbox del despachador (spec 021): los turnos que el CRM le empuja a un
+ * cerebro externo. El mensaje ya está en `message` antes de que exista una
+ * fila aquí: bandeja primero, cerebro después.
+ *
+ * Misma tabla, columnas y estados que `dispatch` de Vocero Cloud, sin lo que
+ * allá es de la plataforma (`brain_generation`, `expires_at`, `brain_kind`,
+ * `responded_message_id`).
+ */
+export const dispatch = pgTable(
+  "dispatch",
+  {
+    /** Es el `dispatchId` que viaja al cerebro: la clave de idempotencia. */
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    conversationId: text("conversation_id")
+      .notNull()
+      .references(() => conversation.id, { onDelete: "cascade" }),
+    status: text("status", {
+      enum: [
+        "pendiente",
+        "en_vuelo",
+        "entregado",
+        "caducado_a_humano",
+        "descartado",
+      ],
+    })
+      .notNull()
+      .default("pendiente"),
+    /** Sube al tomar la fila: distingue a dos dueños de un mismo lease. */
+    attempts: integer("attempts").notNull().default(0),
+    /**
+     * La ventana de agrupado: cada mensaje nuevo de la conversación la empuja
+     * hacia adelante. El worker solo toma filas cuyo `not_before` ya venció,
+     * así que una ráfaga se junta sola.
+     */
+    notBefore: timestamp("not_before").notNull().defaultNow(),
+    firstMessageAt: timestamp("first_message_at").notNull(),
+    lastMessageAt: timestamp("last_message_at").notNull(),
+    leasedUntil: timestamp("leased_until"),
+    /** Motivo del último fallo. Nunca el cuerpo firmado ni la llave. */
+    lastError: text("last_error"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    /**
+     * La pieza central de esta tabla: como máximo UN despacho vivo por
+     * conversación. De aquí salen el agrupado de ráfagas y el orden, y
+     * sobreviven a que alguien reescriba el worker, porque la garantía la da
+     * Postgres y no la lógica.
+     */
+    uniqueIndex("dispatch_conversation_vivo_uq")
+      .on(t.conversationId)
+      .where(sql`${t.status} in ('pendiente', 'en_vuelo')`),
+    /**
+     * La tarjeta «Quién responde» pregunta por el último entregado y el último
+     * fallido. Con `updated_at` en el índice esa pregunta cuesta lo mismo con
+     * cien filas que con un millón; sin él, cada refresco ordenaba todo el
+     * histórico. (En Vocero Cloud es `dispatch_org_status_idx`, sin la tercera
+     * columna: este es su superconjunto.)
+     */
+    index("dispatch_org_status_updated_idx").on(
+      t.organizationId,
+      t.status,
+      t.updatedAt
+    ),
+    // La consulta del worker: pendientes cuya ventana ya venció.
+    index("dispatch_status_notbefore_idx").on(t.status, t.notBefore),
+  ]
+);

@@ -1,6 +1,8 @@
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { mediaDirStatus } from "@/server/media-dir";
+import { leerConfigDespacho } from "@/server/brains/config";
+import { iniciarWorker, tanda } from "@/server/dispatch/worker";
 
 /**
  * 008 — Aviso al arranque si MEDIA_DIR no es escribible. Sin esto, el primer
@@ -50,5 +52,33 @@ export async function cleanupOrphanRuns(): Promise<void> {
   } catch (err) {
     // La BD puede no estar lista aún (migraciones corren antes del server).
     console.error("[boot] limpieza de corridas huérfanas falló:", err);
+  }
+}
+
+/**
+ * 021 — Reanuda el despacho al arrancar. Sin esto, un turno que quedó
+ * pendiente o a medio reintentar cuando el contenedor se reinició esperaría a
+ * que llegara OTRO mensaje para que alguien encendiera el worker.
+ *
+ * Solo con el despacho activo: una instancia sin cerebro no barre nada. Y lo
+ * mal configurado se dice aquí una vez, además de en la tarjeta «Quién
+ * responde»: es el log que alguien mira cuando el agente no contesta.
+ */
+export function resumeDispatch(): void {
+  const config = leerConfigDespacho();
+  if (config.active) {
+    iniciarWorker();
+    void tanda();
+    console.log(`[boot] despacho al cerebro activo → ${config.host}`);
+    return;
+  }
+  if (config.problem === "url") {
+    console.error(
+      "[boot] BRAIN_DISPATCH_URL no es una URL http:// o https:// válida (sin usuario:clave): el despacho al cerebro queda INACTIVO."
+    );
+  } else if (config.problem === "sin_llave") {
+    console.error(
+      "[boot] BRAIN_DISPATCH_URL está definida pero falta BOT_API_KEY (mínimo 16 caracteres): el despacho al cerebro queda INACTIVO."
+    );
   }
 }

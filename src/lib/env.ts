@@ -61,6 +61,12 @@ export const envSchema = z.object({
   // validaba y todo respondía 503). La tarjeta la marca como problema de
   // configuración y lo demás sigue funcionando (server/bot/status.ts).
   BRAIN_HEALTH_URL: z.string().optional(),
+  // 021: a dónde le despacha el CRM cada turno al cerebro externo. Ej.:
+  // http://nea:8000/vocero/dispatch. Con ella y `BOT_API_KEY`, el agente
+  // incluido deja de contestar: contesta el cerebro. Tampoco se valida aquí,
+  // por lo mismo que la de arriba: mal escrita, el despacho queda inactivo y
+  // la tarjeta lo dice (server/brains/config.ts).
+  BRAIN_DISPATCH_URL: z.string().optional(),
   // 008: volumen local de adjuntos (constitución II: sin S3/R2).
   MEDIA_DIR: z.string().default("./.dev-media"),
   NODE_ENV: z.string().default("development"),

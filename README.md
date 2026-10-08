@@ -124,6 +124,20 @@ llamadas por minuto; sin llave o con una mala, 30 por minuto desde la misma IP
 responden `401` y las siguientes `429` («Demasiados intentos fallidos»). Quien
 inunde la API sin llave no deja a tu bot sin servicio.
 
+**Que el CRM le pase cada turno a tu bot.** Tu bot no necesita recibir el
+webhook de Meta: con `BRAIN_DISPATCH_URL` (p. ej.
+`http://nea:8000/vocero/dispatch`) y la misma `BOT_API_KEY`, el mensaje entra
+primero a la bandeja y el CRM le hace a tu bot un `POST` firmado con lo que el
+cliente escribió desde la última respuesta, junto, después de esperar a que
+termine su ráfaga. Tu bot contesta por `POST /api/bot/messages`, como siempre.
+Es igual para WhatsApp, Instagram y Messenger, y no hay secreto de Meta que
+copiar ni cola de reenvío que vigilar. Mientras está activo, el agente incluido
+no contesta. Si tu bot no recibe el turno (tres intentos), la conversación
+queda con una persona y el mensaje sigue en la bandeja. El contrato del evento
+y de la firma está en
+[`specs/021-despacho-estandar/contracts/despacho.md`](specs/021-despacho-estandar/contracts/despacho.md)
+y su guion en [`tests/e2e/us-despacho.md`](tests/e2e/us-despacho.md).
+
 Si tu bot recibe los webhooks de Meta por un **override de callback de la
 WABA**, guardar la conexión en Configuración → WhatsApp (o rotar el token) lo
 respeta: Vocero ve el override en `GET /{WABA}/subscribed_apps`, no re-suscribe
@@ -138,7 +152,9 @@ defines `BRAIN_HEALTH_URL`, p. ej. `http://nea:8000/health`— si está en
 línea, su versión, su modo y cuántos mensajes le faltan por relevar. Los dos
 no se ven entre sí, así que si ambos están activos tu cliente recibe dos
 respuestas: la tarjeta lo marca en rojo y te dice cómo quitarlo (apagar el
-agente incluido o quitar la llave en Ajustes → IA).
+agente incluido o quitar la llave en Ajustes → IA). Con `BRAIN_DISPATCH_URL`
+eso ya no puede pasar, y la tarjeta gana una fila: a quién se le despacha,
+cuándo llegó el último turno y si alguno no llegó.
 
 Agente de referencia: [nea-agent](https://github.com/kevinrivm/nea-agent), MIT.
 

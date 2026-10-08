@@ -4,6 +4,7 @@ import type { ZodIssue } from "zod";
 import { getDb, PG_CONNECTION_OPTIONS, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
 import { envSchema, safeParseEnv, type Env } from "@/lib/env";
+import { leerConfigDespacho } from "@/server/brains/config";
 import { GENERATED_SECRETS, PLACEHOLDER_PREFIX } from "@/server/doctor/init-env";
 import { probeMediaDir } from "@/server/media-dir";
 import { testConnection, type ConnectionCheck } from "@/server/whatsapp/connect";
@@ -522,6 +523,49 @@ export function checkAi(env: Env): CheckResult {
     status: "ok",
     label: "OPENROUTER_API_TOKEN",
     detail: `definida · modelo ${env.OPENROUTER_MODEL}${judge}`,
+  };
+}
+
+/* ---------- Despacho al cerebro (opcional) ---------- */
+
+/**
+ * 021 — `BRAIN_DISPATCH_URL` mal puesta no tumba nada: el despacho queda
+ * inactivo y contesta el agente incluido, como en 1.5. Por eso es un aviso y
+ * no una ✗: es justo el caso que alguien busca cuando «el cerebro no recibe
+ * nada». Nunca se imprime la URL entera (puede llevar ruta con secreto).
+ */
+export function checkDispatch(
+  source: Record<string, string | undefined>
+): CheckResult {
+  const config = leerConfigDespacho(source);
+  const label = "BRAIN_DISPATCH_URL";
+  if (config.active) {
+    return {
+      status: "ok",
+      label,
+      detail: `el CRM le despacha cada turno a ${config.host}, firmado con BOT_API_KEY; el agente incluido queda en silencio`,
+    };
+  }
+  if (config.problem === "url") {
+    return {
+      status: "warn",
+      label,
+      detail: "no es una URL http:// o https:// válida (o lleva usuario:clave): el despacho queda INACTIVO",
+      fix: "en .env: BRAIN_DISPATCH_URL=http://nea:8000/vocero/dispatch (la dirección interna de tu cerebro)",
+    };
+  }
+  if (config.problem === "sin_llave") {
+    return {
+      status: "warn",
+      label,
+      detail: `apunta a ${config.host}, pero falta BOT_API_KEY (mínimo 16 caracteres): el despacho queda INACTIVO`,
+      fix: "en .env: BOT_API_KEY=$(openssl rand -base64 32), y la misma llave en tu cerebro",
+    };
+  }
+  return {
+    status: "skip",
+    label,
+    detail: "no definida: contesta el agente incluido, o un cerebro que reciba el webhook por su cuenta",
   };
 }
 
