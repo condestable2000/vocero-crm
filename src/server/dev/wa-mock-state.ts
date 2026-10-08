@@ -68,6 +68,12 @@ type WaMockState = {
   capiEvents: CapiMockEvent[];
   /** Por WABA ID. Sin entrada = la app no está suscrita a esa WABA. */
   wabaSubscriptions: Record<string, MockWabaSubscription>;
+  /**
+   * Override de webhook por NÚMERO: phone_number_id → callback URL. Es lo que
+   * el CRM registra al guardar la conexión; el self-test lo lee para comprobar
+   * que quedó puesto (y que desconectar lo quita) sin mirar dentro del CRM.
+   */
+  phoneWebhooks: Record<string, string>;
   counter: number;
 };
 
@@ -79,6 +85,7 @@ function freshState(): WaMockState {
     templates: [],
     capiEvents: [],
     wabaSubscriptions: {},
+    phoneWebhooks: {},
     counter: 0,
   };
 }
@@ -87,6 +94,8 @@ export function getWaMockState(): WaMockState {
   if (!globalForMock.__waMockState) {
     globalForMock.__waMockState = freshState();
   }
+  // Un proceso de `next dev` que ya tenía el estado viejo en memoria.
+  globalForMock.__waMockState.phoneWebhooks ??= {};
   return globalForMock.__waMockState;
 }
 

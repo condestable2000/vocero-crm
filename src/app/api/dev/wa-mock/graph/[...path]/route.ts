@@ -1,4 +1,5 @@
 import { mockGuard } from "@/lib/dev-guard";
+import { getEnv } from "@/lib/env";
 import {
   getWaMockState,
   nextN,
@@ -57,6 +58,81 @@ function invalidTokenResponse(): Response {
     },
     { status: 401 }
   );
+}
+
+/**
+ * Tokens con los que el mock imita dos rechazos reales de Meta al registrar
+ * el webhook: sin `whatsapp_business_management` (código 200) y una app sin
+ * callback URL propia (el GET de `webhook_configuration` no trae
+ * `application`).
+ */
+const SIN_GESTION = "-sin-gestion";
+const SIN_WEBHOOK_DE_APP = "-sin-app";
+
+function permissionErrorResponse(): Response {
+  return Response.json(
+    {
+      error: {
+        message: "(#200) Permissions error",
+        type: "OAuthException",
+        code: 200,
+        fbtrace_id: "mock",
+      },
+    },
+    { status: 403 }
+  );
+}
+
+function callbackVerificationFailed(failure: string): Response {
+  return Response.json(
+    {
+      error: {
+        message: `(#2200) Callback verification failed with the following errors: ${failure}`,
+        type: "OAuthException",
+        code: 2200,
+        fbtrace_id: "mock",
+      },
+    },
+    { status: 400 }
+  );
+}
+
+/**
+ * Meta verifica el callback ANTES de aceptar un override: le hace el mismo
+ * GET de suscripción que al configurarlo en el panel, y si no devuelve el
+ * challenge, rechaza con 2200. El mock lo hace de verdad contra la URL, así
+ * un verify token que no casa con la ruta no pasa en verde.
+ *
+ * Si la URL es la de esta misma instancia (`APP_BASE_URL`), se le habla por
+ * loopback, como hace `deliverToWebhook`: el dominio público puede no
+ * resolver desde dentro del proceso y lo que se prueba es la ruta y el token.
+ */
+async function callbackVerificationError(
+  uri: string,
+  verifyToken: string
+): Promise<string | null> {
+  const challenge = String(nextN() * 7919);
+  let url: URL;
+  try {
+    url = new URL(uri);
+  } catch {
+    return "Invalid URL";
+  }
+  const own = getEnv().APP_BASE_URL.replace(/\/$/, "");
+  if (url.origin === own) {
+    url = new URL(`http://127.0.0.1:${process.env.PORT ?? "3000"}${url.pathname}${url.search}`);
+  }
+  url.searchParams.set("hub.mode", "subscribe");
+  url.searchParams.set("hub.challenge", challenge);
+  url.searchParams.set("hub.verify_token", verifyToken);
+  try {
+    const res = await fetch(url, { cache: "no-store" });
+    const text = await res.text();
+    if (res.status === 200 && text === challenge) return null;
+    return `HTTP Status Code = ${res.status}; the challenge did not match`;
+  } catch {
+    return "Couldn't connect to server";
+  }
 }
 
 /** Un teléfono de Meta es solo dígitos; un BSUID lleva prefijo y punto. */
@@ -123,6 +199,22 @@ export async function GET(req: Request, ctx: Params) {
   // 017 — GET {psid}?fields=first_name,last_name → perfil de quien escribe
   // por Messenger (la ingesta lo consulta la primera vez que ve un PSID).
   const fields = new URL(req.url).searchParams.get("fields") ?? "";
+
+  // GET {phoneNumberId}?fields=webhook_configuration → el override vigente
+  // del número y la callback URL de la app (ausente con un token "-sin-app").
+  if (path.length === 1 && fields.includes("webhook_configuration")) {
+    const override = getWaMockState().phoneWebhooks[path[0]!];
+    return Response.json({
+      webhook_configuration: {
+        ...(override ? { phone_number: override } : {}),
+        ...(token.endsWith(SIN_WEBHOOK_DE_APP)
+          ? {}
+          : { application: "https://app-de-meta.mock/webhook" }),
+      },
+      id: path[0],
+    });
+  }
+
   if (path.length === 1 && fields.includes("first_name")) {
     return Response.json({
       id: path[0],
@@ -371,6 +463,7 @@ export async function POST(req: Request, ctx: Params) {
   // ("Delete WABA alternate callback"): un CRM que re-suscribe a ciegas
   // desconecta aquí al cerebro externo igual que en producción.
   if (path.length === 2 && path[1] === "subscribed_apps") {
+    if (token.endsWith(SIN_GESTION)) return permissionErrorResponse();
     const uri =
       typeof body.override_callback_uri === "string"
         ? body.override_callback_uri.trim()
@@ -378,6 +471,28 @@ export async function POST(req: Request, ctx: Params) {
     getWaMockState().wabaSubscriptions[path[0]!] = {
       overrideCallbackUri: uri || null,
     };
+    return Response.json({ success: true });
+  }
+
+  // POST {phoneNumberId} con webhook_configuration → override del NÚMERO, el
+  // que el CRM registra al guardar la conexión. Como en Meta: exige el
+  // permiso de gestión, verifica el callback (handshake) antes de aceptarlo y
+  // una cadena vacía lo quita.
+  if (path.length === 1 && body.webhook_configuration) {
+    if (token.endsWith(SIN_GESTION)) return permissionErrorResponse();
+    const config = body.webhook_configuration as {
+      override_callback_uri?: string;
+      verify_token?: string;
+    };
+    const state = getWaMockState();
+    const uri = config.override_callback_uri ?? "";
+    if (!uri) {
+      delete state.phoneWebhooks[path[0]!];
+      return Response.json({ success: true });
+    }
+    const failure = await callbackVerificationError(uri, config.verify_token ?? "");
+    if (failure) return callbackVerificationFailed(failure);
+    state.phoneWebhooks[path[0]!] = uri;
     return Response.json({ success: true });
   }
 

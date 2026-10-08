@@ -126,8 +126,10 @@ inunde la API sin llave no deja a tu bot sin servicio.
 
 Si tu bot recibe los webhooks de Meta por un **override de callback de la
 WABA**, guardar la conexión en Configuración → WhatsApp (o rotar el token) lo
-respeta: Vocero ve el override en `GET /{WABA}/subscribed_apps` y no re-suscribe
-la app, que es justo lo que lo borraría.
+respeta: Vocero ve el override en `GET /{WABA}/subscribed_apps`, no re-suscribe
+la app —que es justo lo que lo borraría— y tampoco registra su propio webhook
+en el número, porque ese tendría prioridad y dejaría sordo a tu bot. La
+pantalla te dice a qué host se está respetando.
 
 Arriba de la pantalla **Agente**, la tarjeta **«Quién responde a tus
 clientes»** dice quién está contestando: el agente incluido (encendido y con
@@ -311,10 +313,17 @@ Embedded Signup. Hay dos formas de obtenerlo:
    acceso a la WABA y genera un token permanente con permisos
    `whatsapp_business_messaging` y `whatsapp_business_management`.
 3. En Vocero: **Configuración → WhatsApp** → pega WABA ID + Phone Number ID +
-   token → **Probar conexión** → Guardar.
-4. En el panel de Meta (WhatsApp → Configuration → Webhook) pega la **URL del
-   webhook** y el **verify token** que Vocero te muestra, y suscribe el campo
-   `messages` (y `message_template_status_update` si usarás plantillas).
+   token → **Probar conexión** → Guardar. Al guardar, Vocero **registra el
+   webhook en Meta por ti** (override a nivel del número, con el handshake
+   incluido) y te lo confirma en pantalla. Si Meta lo rechaza, la conexión
+   queda guardada igual, el aviso dice por qué (casi siempre el token no tiene
+   `whatsapp_business_management`) y el botón **«Registrar en Meta»** de la
+   tarjeta del webhook reintenta sin volver a pegar el token.
+4. Solo si tu app aún no tiene ningún webhook configurado (Vocero te lo
+   avisa): en el panel de Meta (WhatsApp → Configuration → Webhook) pega la
+   **URL del webhook** y el **verify token** que Vocero te muestra, y suscribe
+   el campo `messages` (y `message_template_status_update` si usarás
+   plantillas). Es una sola vez por app.
 5. Recomendado: agrega `META_APP_SECRET` (App Secret de tu app) a las
    variables de la instancia para la verificación de firma de cada evento.
 
@@ -340,15 +349,17 @@ del cliente se conecta con el **override de callback por WABA**:
 **Checklist de 5 pasos (el orden importa):**
 
 1. **Despliega la instancia primero** (Ruta A o B) — el webhook debe estar en
-   línea para el paso 4.
+   línea para el handshake del paso 3.
 2. **Embedded Signup en TU plataforma**: el cliente conecta su número en tu
    onboarding y tu backend guarda su token (intercambio de código → token).
 3. **Pega las credenciales en el wizard** de la instancia (WABA ID, Phone
-   Number ID, token) → **Probar conexión** → **GUARDAR**. Este paso va ANTES
-   del override: el webhook enruta cada mensaje por el Phone Number ID
-   **guardado** — sin conexión guardada, el handshake del paso 4 pasa igual,
-   pero los mensajes que lleguen se descartan en silencio.
-4. **Configura el override del callback a nivel WABA** hacia la instancia:
+   Number ID, token) → **Probar conexión** → **GUARDAR**. Al guardar, Vocero
+   **registra el override del callback a nivel del número** hacia la propia
+   instancia (y el webhook enruta cada mensaje por el Phone Number ID
+   guardado). Si tu backend ya enruta esa WABA a otro sitio, Vocero lo respeta
+   y no registra el del número.
+4. **Solo si prefieres enrutar desde tu backend** (o el registro automático
+   falló), configura el override del callback a nivel WABA hacia la instancia:
 
    ```http
    POST https://graph.facebook.com/v25.0/{WABA_ID_DEL_CLIENTE}/subscribed_apps
@@ -477,8 +488,10 @@ clientes reales.
 ## FAQ de errores comunes
 
 **El webhook no se verifica en Meta** — El dominio aún no resuelve, no es
-https, o pegaste mal la URL/verify token. Cópialos exactos de Configuración →
-WhatsApp.
+https, o el token no tiene `whatsapp_business_management`: el aviso al guardar
+trae el motivo tal cual lo dio Meta. Corrige y pulsa **«Registrar en Meta»** en
+Configuración → WhatsApp. Si lo pegas a mano, cópialos exactos de esa misma
+pantalla.
 
 **El webhook verificó bien pero no llegan mensajes** — Casi siempre: la
 conexión no está GUARDADA en el wizard (el handshake no la necesita, la
