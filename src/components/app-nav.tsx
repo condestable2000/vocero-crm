@@ -10,6 +10,7 @@ import {
   FlaskConical,
   Inbox,
   Kanban,
+  ListChecks,
   LogOut,
   Settings,
   Sparkles,
@@ -19,6 +20,7 @@ import {
 import type { Branding } from "@/lib/branding";
 import type { ThemePreference } from "@/lib/theme";
 import { cn, initials } from "@/lib/utils";
+import { canConfigure } from "@/lib/auth/roles";
 import { signOut } from "@/lib/auth/client";
 import { useEvents } from "@/components/use-events";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -54,6 +56,16 @@ const AGENDA_ITEM: NavItem = {
   href: "/bookings",
   label: "Citas",
   icon: CalendarDays,
+};
+
+/**
+ * #86 — La guía de inicio, arriba de todo y solo para quien puede
+ * configurar: un miembro del equipo no puede hacer ninguno de sus pasos.
+ */
+const GUIDE_ITEM: NavItem = {
+  href: "/onboarding",
+  label: "Guía de inicio",
+  icon: ListChecks,
 };
 
 /**
@@ -132,6 +144,7 @@ export function AppNav({
   const items = agenda
     ? [...NAV.slice(0, 2), AGENDA_ITEM, ...NAV.slice(2)]
     : NAV;
+  const menu = canConfigure(role) ? [GUIDE_ITEM, ...items] : items;
 
   return (
     <aside
@@ -168,7 +181,7 @@ export function AppNav({
       </div>
 
       <nav className="flex flex-col gap-0.5">
-        {items.map((item) => {
+        {menu.map((item) => {
           const active =
             pathname === item.href || pathname.startsWith(`${item.href}/`);
           return (
