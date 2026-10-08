@@ -345,11 +345,23 @@ solas al arrancar.
 
 1. Entra y **regístrate**: el primer registro crea tu organización y cierra el
    registro público.
-2. Opcional: pulsa **"Cargar datos de demostración"** para explorar con la
-   **Ferretería El Martillo** (contactos, conversaciones, pipeline, un
-   knowledge base con huecos a propósito y una corrida de Laboratorio de
-   ejemplo — corre el Laboratorio y mira cómo los encuentra).
-3. La conexión de WhatsApp se hace después, en **Configuración → WhatsApp**.
+2. Lo primero que ves es la **Guía de inicio**: tres pasos —configura tu
+   agente, vincula tu proveedor de IA, conecta tu número de WhatsApp— y, con la
+   agenda encendida (`AGENDA=on`), un cuarto para tus horarios. Cada botón te
+   lleva a la pantalla que toca y al volver ves tu avance; cada paso se marca
+   solo cuando la pieza de verdad funciona. Al terminar aparece **Encender**:
+   hasta entonces el agente no le contesta a nadie y los mensajes que lleguen
+   los atiendes tú desde la Bandeja.
+3. Mientras falte un paso o el agente siga apagado, entrar a la app te lleva a
+   la guía (también está en el menú, solo para el propietario). Con todo listo
+   y el agente encendido entras directo a la Bandeja. La guía no encierra a
+   nadie: desde el menú vas a cualquier pantalla en cualquier momento.
+4. Opcional: en la Bandeja, pulsa **"Cargar datos de demostración"** para
+   explorar con la **Ferretería El Martillo** (contactos, conversaciones,
+   pipeline, un knowledge base con huecos a propósito y una corrida de
+   Laboratorio de ejemplo — corre el Laboratorio y mira cómo los encuentra).
+   La demo deja configurado el agente (paso 1 listo); la llave de IA y el
+   número siguen siendo tuyos.
 
 ## Conexión del número de WhatsApp
 

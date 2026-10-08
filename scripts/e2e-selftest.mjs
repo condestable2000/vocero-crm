@@ -101,6 +101,8 @@ async function main() {
   }
   ok("registro o login del operador", su.res.ok, JSON.stringify(su.json));
 
+  await guiaChecks();
+
   const conn = await api("/api/settings/whatsapp", {
     method: "PUT",
     body: JSON.stringify({
@@ -1444,6 +1446,245 @@ async function quienResponde(convId, estado, url, nea) {
       JSON.stringify(sigue?.external)
     );
   }
+}
+
+/* ============================================================
+ * Guía de inicio — la primera pantalla (tests/e2e/us-guia-de-inicio.md, #86)
+ *
+ * Lo que se protege: que la raíz mande a la guía mientras falte un paso o el
+ * agente siga apagado, que cada paso se marque solo cuando la pieza de verdad
+ * funciona (la misma fuente que usa el resto de la app), y que «Encender»
+ * saque la guía del camino. Corre justo después del login, antes de que el
+ * resto del guion conecte nada: así se ve la instancia como la ve quien
+ * acaba de instalar. En una RE-CORRIDA la base ya trae de todo, así que
+ * primero se vuelve al punto de partida (sin llave, sin número, agente sin
+ * instrucciones y apagado) y al final se deja como estaba para lo que sigue.
+ * ============================================================ */
+
+async function guiaChecks() {
+  console.log("\n== guía de inicio: la primera pantalla ==");
+  const agenda = /^(on|1|true|si|sí|yes)$/i.test((process.env.AGENDA ?? "").trim());
+  // La app lee el mismo .env que este guion: si trae la llave, el paso 2 ya
+  // está listo «por el respaldo del entorno» y la guía lo dice así.
+  const respaldoEnv = Boolean((process.env.OPENROUTER_API_TOKEN ?? "").trim());
+
+  const estado = async () => (await api("/api/onboarding/status")).json;
+  const paso = async (key) => (await estado())?.steps?.find((s) => s.key === key);
+  /** A dónde manda la raíz con la sesión del operador. */
+  const raiz = async () => {
+    const res = await fetch(`${BASE}/`, { redirect: "manual", headers: { cookie } });
+    const loc = res.headers.get("location") ?? "";
+    return `${res.status} ${loc}`;
+  };
+  const mandaA = (destino) => (r) =>
+    /^30[0-9] /.test(r) && (r.endsWith(destino) || r.endsWith(`${destino}/`));
+  // React separa las expresiones JSX con `<!-- -->` en el HTML del servidor:
+  // «Deja listo tu CRM en <!-- -->4<!-- --> pasos». Se compara el texto.
+  const texto = (h) => h.replace(/<!--.*?-->/g, "");
+
+  // --- Punto de partida reproducible ---
+  await api("/api/settings/ai", { method: "DELETE" });
+  await api("/api/settings/whatsapp", { method: "DELETE" });
+  await api("/api/agent/profile", {
+    method: "PUT",
+    body: JSON.stringify({ enabled: false, instructions: null }),
+  });
+  for (const e of (await api("/api/kb")).json?.entries ?? []) {
+    await api(`/api/kb/${e.id}`, { method: "DELETE" });
+  }
+  if (agenda) {
+    // Todos los días cerrados: el paso 4 queda pendiente aunque una corrida
+    // anterior ya hubiera guardado horarios.
+    await api("/api/calendar/settings", {
+      method: "PUT",
+      body: JSON.stringify({ connector: "enlace-fijo", weeklyHours: {} }),
+    });
+  }
+
+  // --- Lo que ve quien acaba de instalar ---
+  const anon = await fetch(`${BASE}/api/onboarding/status`);
+  ok("estado sin sesión → 401", anon.status === 401, `status=${anon.status}`);
+
+  const inicial = await estado();
+  ok(
+    "GET /api/onboarding/status → pasos verificados + guía + agente apagado",
+    Array.isArray(inicial?.steps) && inicial?.enabled === false && inicial?.guide?.complete === false,
+    JSON.stringify(inicial)
+  );
+  ok(
+    "los pasos de la raíz: agente, IA, WhatsApp y agenda",
+    JSON.stringify(inicial?.steps?.map((s) => s.key)) ===
+      JSON.stringify(["profile", "ai", "whatsapp", "calendar"]),
+    JSON.stringify(inicial?.steps?.map((s) => s.key))
+  );
+  const guiaKeys = inicial?.guide?.steps?.map((s) => s.key) ?? [];
+  ok(
+    agenda
+      ? "con la agenda encendida la guía tiene 4 pasos"
+      : "sin agenda la guía tiene 3 pasos (el de agenda ni se pinta)",
+    JSON.stringify(guiaKeys) ===
+      JSON.stringify(agenda ? ["agent", "ai", "whatsapp", "calendar"] : ["agent", "ai", "whatsapp"]),
+    JSON.stringify(guiaKeys)
+  );
+  const perfil0 = inicial?.steps?.find((s) => s.key === "profile");
+  ok(
+    "el agente con nombre de fábrica y sin instrucciones está pendiente y dice qué falta",
+    perfil0?.status === "pending" && /nombre/.test(perfil0?.nextAction ?? ""),
+    JSON.stringify(perfil0)
+  );
+  ok(
+    "WhatsApp sin número → pendiente",
+    inicial?.steps?.find((s) => s.key === "whatsapp")?.status === "pending"
+  );
+  const ia0 = inicial?.steps?.find((s) => s.key === "ai");
+  ok(
+    respaldoEnv
+      ? "IA: sin fila guardada cuenta el respaldo del entorno (OPENROUTER_*)"
+      : "IA: sin fila ni entorno → pendiente",
+    respaldoEnv
+      ? ia0?.status === "ready" && /entorno/.test(ia0?.nextAction ?? "")
+      : ia0?.status === "pending",
+    JSON.stringify(ia0)
+  );
+
+  const r0 = await raiz();
+  ok("la raíz manda a /onboarding mientras falte un paso", mandaA("/onboarding")(r0), r0);
+
+  // La pantalla se compila en su primer request en `next dev`: espera activa.
+  let html = "";
+  const pantalla = await hasta(async () => {
+    const res = await fetch(`${BASE}/onboarding`, { headers: { cookie } });
+    html = res.ok ? texto(await res.text()) : "";
+    return res.ok && html.includes("Deja listo tu CRM en");
+  }, 40_000, 1000);
+  ok("la pantalla /onboarding carga con la cabecera «Deja listo tu CRM en N pasos»", pantalla);
+  ok(
+    `…y cuenta los ${guiaKeys.length} pasos de esta instancia`,
+    html.includes(`Deja listo tu CRM en ${guiaKeys.length} pasos`)
+  );
+  ok(
+    "…con la tarjeta final explicando que el agente empieza apagado",
+    html.includes("Al final: encender a") && html.includes("empieza apagado")
+  );
+  ok("…y la entrada «Guía de inicio» en el menú", html.includes("Guía de inicio"));
+
+  // --- Los pasos se marcan solos ---
+  const perfilOk = await api("/api/agent/profile", {
+    method: "PUT",
+    body: JSON.stringify({ name: "Sofi", instructions: "Vendemos limpiezas dentales." }),
+  });
+  ok(
+    "paso 1: guardar nombre + instrucciones lo deja listo",
+    perfilOk.res.ok && (await paso("profile"))?.status === "ready"
+  );
+
+  const guardarIa = await api("/api/settings/ai", {
+    method: "PUT",
+    body: JSON.stringify({
+      provider: "openai_compatible",
+      baseUrl: process.env.OPENROUTER_BASE_URL ?? `${BASE}/api/dev/ai-mock`,
+      model: "mock/modelo-e2e",
+      token: "tok-ia-e2e-0001",
+    }),
+  });
+  const iaFila = await paso("ai");
+  ok(
+    "paso 2: la llave guardada en Ajustes → IA lo deja listo (la fila manda)",
+    guardarIa.res.ok && iaFila?.status === "ready" && /Ajustes/.test(iaFila?.nextAction ?? ""),
+    `status=${guardarIa.res.status} ${JSON.stringify(iaFila)}`
+  );
+
+  const conectar = await api("/api/settings/whatsapp", {
+    method: "PUT",
+    body: JSON.stringify({ wabaId: "WABA-E2E", phoneNumberId: PN, token: "tok-e2e" }),
+  });
+  ok(
+    "paso 3: conectar el número lo deja listo",
+    conectar.res.ok && (await paso("whatsapp"))?.status === "ready",
+    `status=${conectar.res.status}`
+  );
+
+  if (agenda) {
+    const cerrado = await paso("calendar");
+    ok(
+      "paso 4: con todos los días cerrados la agenda sigue pendiente",
+      cerrado?.status === "pending" && cerrado?.href === "/settings/calendar",
+      JSON.stringify(cerrado)
+    );
+    await api("/api/calendar/settings", {
+      method: "PUT",
+      body: JSON.stringify({
+        connector: "zoom",
+        weeklyHours: { mon: [{ start: "09:00", end: "18:00" }] },
+      }),
+    });
+    const zoomSinCred = await paso("calendar");
+    ok(
+      "paso 4: Zoom elegido sin credencial → pendiente, y la pista lo dice",
+      zoomSinCred?.status === "pending" && /Zoom/.test(zoomSinCred?.problem ?? ""),
+      JSON.stringify(zoomSinCred)
+    );
+    const horario = await api("/api/calendar/settings", {
+      method: "PUT",
+      body: JSON.stringify({
+        connector: "enlace-fijo",
+        weeklyHours: {
+          mon: [{ start: "09:00", end: "18:00" }],
+          tue: [{ start: "09:00", end: "18:00" }],
+          wed: [{ start: "09:00", end: "18:00" }],
+          thu: [{ start: "09:00", end: "18:00" }],
+          fri: [{ start: "09:00", end: "18:00" }],
+        },
+      }),
+    });
+    ok(
+      "paso 4: horarios + enlace fijo lo deja listo sin credenciales de nadie",
+      horario.res.ok && (await paso("calendar"))?.status === "ready"
+    );
+  } else {
+    const noAplica = await paso("calendar");
+    ok(
+      "sin agenda el paso se reporta «no aplica» y sin enlace",
+      noAplica?.status === "not_applicable" && noAplica?.href === null,
+      JSON.stringify(noAplica)
+    );
+  }
+
+  // --- Encender ---
+  const listo = await estado();
+  ok(
+    "con todo listo: guía completa y agente todavía apagado",
+    listo?.guide?.complete === true && listo?.enabled === false,
+    JSON.stringify(listo?.guide)
+  );
+  const r1 = await raiz();
+  ok("…y la raíz SIGUE mandando a /onboarding: falta encenderlo", mandaA("/onboarding")(r1), r1);
+  const htmlListo = texto(await (await fetch(`${BASE}/onboarding`, { headers: { cookie } })).text());
+  ok(
+    "la tarjeta final ofrece «Encender a Sofi» (el nombre, ya configurado)",
+    htmlListo.includes("Enciende a Sofi") && htmlListo.includes("Encender a Sofi")
+  );
+
+  const encender = await api("/api/agent/profile", {
+    method: "PUT",
+    body: JSON.stringify({ enabled: true }),
+  });
+  ok("Encender → PUT /api/agent/profile {enabled:true}", encender.res.ok);
+  const encendido = await estado();
+  ok("…y la guía lo refleja", encendido?.enabled === true && encendido?.guide?.enabled === true);
+  const r2 = await raiz();
+  ok("con todo listo y encendido la raíz manda a la Bandeja", mandaA("/inbox")(r2), r2);
+  const htmlEncendido = texto(await (await fetch(`${BASE}/onboarding`, { headers: { cookie } })).text());
+  ok(
+    "la guía sigue disponible y dice que Sofi ya está contestando",
+    htmlEncendido.includes("Sofi ya está contestando") && htmlEncendido.includes("Ir a la Bandeja")
+  );
+
+  // --- Como estaba, para lo que sigue ---
+  await api("/api/agent/profile", { method: "PUT", body: JSON.stringify({ enabled: false }) });
+  // Sin la fila, el resto del guion sigue hablando con el ai-mock por el
+  // respaldo del entorno, como antes de esta sección.
+  await api("/api/settings/ai", { method: "DELETE" });
 }
 
 /* ============================================================
