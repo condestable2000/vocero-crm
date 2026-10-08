@@ -5,6 +5,79 @@ sigue el SemVer del [README](README.md#versiones): una menor trae funciones
 nuevas y actualizar es redesplegar. Desde 1.4.0, cada tag `vX.Y.Z` publica la
 imagen `ghcr.io/kevinrivm/vocero-crm:X.Y.Z`.
 
+## 1.5.0 — 2026-10-08
+
+Primera versión del plan [docs/plan-1.5-y-2.0.md](docs/plan-1.5-y-2.0.md):
+todo lo de aquí se actualiza redesplegando. El agente incluido, Nea y el
+contrato `/api/bot/*` no cambian; la arquitectura del agente es tema de 2.0.
+
+### Actualizar desde 1.4.0
+
+Redespliega con la imagen `1.5.0` (compose: `git pull` y
+`docker compose up -d`; Coolify: cambia la etiqueta y redespliega). Respalda
+la base antes, como siempre.
+
+- **Migración `0015_token_de_ia`**: crea la tabla `ai_credentials`. Aditiva;
+  corre sola al arrancar.
+- **La IA se configura en Ajustes → IA.** Tus `OPENROUTER_*` del entorno
+  siguen valiendo: son el respaldo cuando no hay nada guardado en la
+  interfaz. Si pegas una llave en Ajustes, esa manda.
+- **Al entrar verás la Guía de inicio** mientras falte un paso o el agente
+  siga apagado. El menú funciona igual; es solo la primera pantalla.
+- **Webhook de Meta**: al volver a guardar la conexión de WhatsApp, el CRM
+  registra su webhook en el número por sí solo. Si usas Nea u otro cerebro
+  con override en la WABA, el CRM lo detecta y no lo pisa.
+- **Adjuntos**: HTML, SVG y XHTML ya no se aceptan como documento, y lo que no
+  sea imagen, audio, video o PDF se descarga en vez de abrirse en el
+  navegador.
+- `/api/health` trae dos campos nuevos (`features`, `mediaWritable`); los de
+  antes no cambian.
+
+### Nuevo
+
+- **Guía de inicio** (#102): primera pantalla con los pasos (agente,
+  proveedor de IA, WhatsApp y, con `AGENDA=on`, agenda), pistas de lo que
+  falta y el botón «Encender». Solo para dueños y administradores.
+- **Ajustes → IA** (#100): proveedor (OpenRouter u otro compatible con
+  OpenAI), modelo y llave cifrada, con «Probar conexión» y «Traer modelos».
+  La llave se pausa sola si el proveedor responde 401 o 402 y la app lo
+  avisa con un enlace para arreglarlo.
+- **Webhook automático y desconectar el número** (#98): guardar la conexión
+  registra el webhook en Meta; «Registrar en Meta» reintenta; «Desconectar»
+  suelta el número sin tocar la bandeja.
+- **Menú agrupado y Ajustes en secciones** (#104): Trabajo, Agente,
+  Resultados y Ajustes; dentro de Ajustes, Canales, Agente y Negocio.
+- **Plantillas explicadas** (#95): para qué sirven, ejemplos, idiomas con
+  nombre, vista previa y avisos de rechazo previsible; un ejemplo realista
+  por variable. **29 monedas** agrupadas en Marca.
+- **`pnpm init-env` y `pnpm doctor`** (#97): el `.env` con los secretos ya
+  generados, y una comprobación línea por línea del entorno, la base, el
+  volumen y la conexión con Meta.
+- **Manifests para Render, Fly y Railway** (#99), con botón «Deploy to
+  Render».
+- **`AGENTS.md`** (#94): la guía neutral del repo para cualquier asistente o
+  persona; `CLAUDE.md` delega en ella.
+- **Respuestas de botón** (#101): los botones de plantilla y las respuestas
+  interactivas entran a la bandeja como texto, abren la ventana de 24 h y
+  llegan al agente.
+
+### Cambió
+
+- `/api/health` dice qué banderas están encendidas y si el volumen de
+  adjuntos se puede escribir (#96).
+- La imagen deja fuera los snapshots de `drizzle/meta` (1.2 MB) (#96).
+- Next 15.5.27 en el lockfile; `pnpm audit --prod` pasa de 33 a 21 entradas,
+  todas de desarrollo o transitivas (#101).
+- El interruptor del Agente solo se bloquea para encender sin IA; apagar se
+  puede siempre (#100).
+- El reloj de la agenda ya no se corta en pantallas chicas (#95).
+
+### Corregido
+
+- Adjuntos servidos con `nosniff` y `CSP sandbox`; `inline` solo para tipos
+  previsualizables (#101).
+- Los fixtures de pruebas usan un número ficticio (#101).
+
 ## 1.4.0 — 2026-09-30
 
 ### Actualizar desde 1.3.0
