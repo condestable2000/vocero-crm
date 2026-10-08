@@ -146,8 +146,9 @@ docker compose up -d
 > 2. Pulsa **"Cargar datos de demostración"** si quieres explorar con la
 >    Ferretería El Martillo.
 > 3. Para conectar tu WhatsApp entra a **Configuración → WhatsApp**: ahí está
->    el wizard y la URL exacta del webhook para el panel de Meta o para tu
->    backend de agencia. La conexión del número NO es parte de esta
+>    el wizard; al guardar, Vocero registra el webhook en Meta por sí solo (la
+>    URL exacta sigue a la vista por si tu agencia enruta desde su backend o
+>    hay que pegarla a mano). La conexión del número NO es parte de esta
 >    instalación.
 
 ## Diagnóstico rápido
@@ -159,7 +160,9 @@ docker compose up -d
   que construye desde el código.
 - `ENCRYPTION_KEY` inválida → debe ser EXACTAMENTE 32 bytes en base64
   (44 caracteres): regénérala con `openssl rand -base64 32`.
-- Webhook "no verificado" en Meta → el dominio aún no resuelve o no es https.
+- Webhook "no verificado" en Meta → el dominio aún no resuelve o no es https;
+  el aviso de Configuración → WhatsApp trae el motivo y «Registrar en Meta»
+  reintenta.
 - Subir el logo o el icono da error, o los adjuntos salen "no disponibles" →
   busca `[boot] MEDIA_DIR` o `[entrypoint] AVISO` en los logs: el directorio
   no es escribible (p. ej. el contenedor corre con un `--user` forzado sobre un

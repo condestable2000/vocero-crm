@@ -1447,18 +1447,26 @@ async function quienResponde(convId, estado, url, nea) {
 }
 
 /* ============================================================
- * us5 — Guardar la conexión respeta el override de un cerebro externo
- * (tests/e2e/us5-connect.md, paso 7)
+ * us5 — Guardar la conexión registra el webhook en Meta y respeta el
+ * override de un cerebro externo (tests/e2e/us5-connect.md, pasos 3, 4, 4b,
+ * 7 y 8)
  *
- * En Meta, `POST {WABA}/subscribed_apps` SIN cuerpo es la forma documentada
- * de BORRAR el override de callback de la WABA, y el CRM lo mandaba en cada
- * "Guardar": un cerebro externo (Nea) que recibe los webhooks por ese override
- * quedaba sordo sin que nada lo avisara. El wa-mock se comporta como Meta, así
- * que si el CRM vuelve a re-suscribir a ciegas, esto se pone rojo.
+ * Antes, guardar dejaba al operador a medias: el token era válido y se podía
+ * enviar, pero no llegaba nada hasta que alguien pegaba la URL en el panel de
+ * su app de Meta. Ahora el CRM la registra él mismo, como override del
+ * NÚMERO, y «Meta» (el wa-mock) hace el handshake de verdad contra la ruta.
+ *
+ * Y lo de siempre: en Meta, `POST {WABA}/subscribed_apps` SIN cuerpo es la
+ * forma documentada de BORRAR el override de callback de la WABA, y el CRM lo
+ * mandaba en cada "Guardar": un cerebro externo (Nea) que recibe los webhooks
+ * por ese override quedaba sordo sin que nada lo avisara. El override del
+ * número ganaría igual, así que con uno ajeno en la WABA el CRM no lo pone.
+ * El wa-mock se comporta como Meta, así que si el CRM vuelve a pisar a
+ * ciegas, esto se pone rojo.
  * ============================================================ */
 
 async function overrideChecks() {
-  console.log("\n== us5: guardar la conexión no desconecta a un cerebro externo ==");
+  console.log("\n== us5: guardar registra el webhook y no desconecta a un cerebro externo ==");
   const WABA = "WABA-E2E";
   const NEA = "https://nea.e2e.test/api/webhooks/meta";
   const graph = `/api/dev/wa-mock/graph/v25.0/${WABA}/subscribed_apps`;
@@ -1469,13 +1477,17 @@ async function overrideChecks() {
   const overrideActual = async () =>
     (await suscripcion()).find((app) => app.override_callback_uri)
       ?.override_callback_uri ?? null;
+  /** El override que «Meta» tiene en el NÚMERO (lo que el CRM registra). */
+  const webhookDelNumero = async () =>
+    (await api("/api/dev/wa-mock/webhooks")).json?.phoneWebhooks?.[PN] ?? null;
   const guardar = (token) =>
     api("/api/settings/whatsapp", {
       method: "PUT",
       body: JSON.stringify({ wabaId: WABA, phoneNumberId: PN, token }),
     });
+  const urlPropia = (await api("/api/settings/webhook")).json?.url ?? null;
 
-  // Modo directo: sin override, guardar suscribe la app, como siempre.
+  // Modo directo: sin override, guardar suscribe la app, como siempre…
   let guardado = await guardar("tok-e2e");
   const trasGuardar = await suscripcion();
   ok(
@@ -1485,6 +1497,42 @@ async function overrideChecks() {
       !trasGuardar[0]?.override_callback_uri,
     JSON.stringify({ status: guardado.res.status, trasGuardar })
   );
+  // …y registra el webhook de la instancia en el número (pasó el handshake).
+  ok(
+    "y registra el webhook de la instancia en el NÚMERO (handshake incluido)",
+    guardado.json?.webhook?.ok === true &&
+      guardado.json.webhook.appWithoutWebhook === false &&
+      !!urlPropia &&
+      (await webhookDelNumero()) === urlPropia,
+    JSON.stringify({ webhook: guardado.json?.webhook, urlPropia, enMeta: await webhookDelNumero() })
+  );
+
+  // El botón «Registrar en Meta» lo repite con la conexión guardada.
+  const boton = await api("/api/settings/webhook", { method: "POST" });
+  ok(
+    "«Registrar en Meta» repite el registro sin volver a pegar el token",
+    boton.res.ok && boton.json?.ok === true && (await webhookDelNumero()) === urlPropia,
+    JSON.stringify(boton.json)
+  );
+
+  // Un token sin whatsapp_business_management: Meta rechaza el registro, la
+  // conexión se guarda igual y el motivo viaja en la respuesta.
+  const sinGestion = await guardar("tok-e2e-sin-gestion");
+  ok(
+    "sin permiso de gestión, la conexión se guarda (200) y avisa por qué no registró",
+    sinGestion.res.ok &&
+      sinGestion.json?.webhook?.ok === false &&
+      sinGestion.json.webhook.code === "missing_permission",
+    JSON.stringify({ status: sinGestion.res.status, webhook: sinGestion.json?.webhook })
+  );
+  const botonSinGestion = await api("/api/settings/webhook", { method: "POST" });
+  ok(
+    "y el botón devuelve el mismo motivo con 422",
+    botonSinGestion.res.status === 422 &&
+      botonSinGestion.json?.error?.code === "missing_permission",
+    JSON.stringify(botonSinGestion.json)
+  );
+  await guardar("tok-e2e");
 
   // El cerebro externo fija SU override contra Meta (lo que hace Nea).
   const fijado = await api(graph, {
@@ -1513,6 +1561,15 @@ async function overrideChecks() {
     despues === NEA,
     `override=${despues}`
   );
+  // El override del número gana al de la WABA: con uno ajeno, el CRM no pone
+  // el suyo y quita el que había dejado el guardado anterior.
+  ok(
+    "y el número queda SIN override propio: el cerebro externo sigue recibiendo",
+    guardado.json?.webhook?.skipped === "waba_override" &&
+      guardado.json.webhook.host === "nea.e2e.test" &&
+      (await webhookDelNumero()) === null,
+    JSON.stringify({ webhook: guardado.json?.webhook, enMeta: await webhookDelNumero() })
+  );
 
   // Control del propio mock: un POST sin cuerpo SÍ borra el override, como en
   // Meta. Sin esto, el check anterior podría pasar contra un mock permisivo.
@@ -1522,8 +1579,27 @@ async function overrideChecks() {
     (await overrideActual()) === null
   );
 
-  // El resto del guion sigue con la conexión de siempre.
+  // Desconectar: quita el override del número en Meta ANTES de soltar el
+  // token, y la bandeja no se toca. Luego el guion sigue con la conexión de
+  // siempre.
   await guardar("tok-e2e");
+  const antesDeSoltar = await webhookDelNumero();
+  const soltar = await api("/api/settings/whatsapp", { method: "DELETE" });
+  const sinConexion = (await api("/api/settings/whatsapp")).json?.connection;
+  ok(
+    "desconectar borra la conexión y quita el override del número en Meta",
+    soltar.res.ok &&
+      antesDeSoltar === urlPropia &&
+      sinConexion === null &&
+      (await webhookDelNumero()) === null,
+    JSON.stringify({ status: soltar.res.status, antesDeSoltar, sinConexion, enMeta: await webhookDelNumero() })
+  );
+  const reconectado = await guardar("tok-e2e");
+  ok(
+    "y volver a guardar lo deja registrado otra vez",
+    reconectado.res.ok && (await webhookDelNumero()) === urlPropia,
+    JSON.stringify(reconectado.json)
+  );
 }
 
 /* ============================================================
