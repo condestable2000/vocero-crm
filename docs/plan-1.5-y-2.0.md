@@ -1,7 +1,8 @@
 # Plan: Vocero 1.5 y 2.0
 
-Fecha: 2026-10-07. Estado: propuesta del autor; se discute en los issues de los
-hitos **1.5.0** y **2.0.0** del repositorio.
+Fecha: 2026-10-07. Estado: la 1.5.0 se publicó el 2026-10-08. La sección
+2.0.0 se reescribió ese mismo día y se discute en los issues del hito
+**2.0.0** del repositorio.
 
 ## Por qué
 
@@ -27,7 +28,10 @@ contra Nea; y qué tan fácil es desplegar y leer el repositorio.
    adjuntos, llamar al modelo, ejecutar herramientas, formatear, vigilar). Lo
    que cambia por negocio son datos: instrucciones, herramientas encendidas,
    conocimiento y clientes simulados del Laboratorio.
-5. **Menor = redesplegar. Mayor = hacer algo a mano** (README, «Versiones»).
+5. **El CRM es el producto; las capacidades son servicios aparte.** El agente
+   es la primera: vive fuera del CRM y habla con él por un contrato. Encender
+   una herramienta del agente no exige redesplegar el CRM.
+6. **Menor = redesplegar. Mayor = hacer algo a mano** (README, «Versiones»).
 
 ## 1.5.0 — todo se actualiza redesplegando
 
@@ -48,36 +52,59 @@ Orden sugerido: 6 → 7 → 9 → 5 → 4 → 3 → 2 → 1 → 8. Primero lo qu
 todo lo demás (que el repo se explique solo), luego lo que baja de cloud, y la
 interfaz al final porque depende del token y de la guía.
 
-## 2.0.0 — un solo agente
+## 2.0.0 — el CRM es el producto, el agente es un servicio
 
 Hoy el agente vive dos veces: incompleto dentro de Vocero (una llamada por
-turno, solo texto) y completo en Nea (fuera, en Python, con su propio
-Postgres y un relay). De las ~7,900 líneas de Nea, ~4,000 existen solo por
-vivir fuera. Lo que la raíz no tiene son ~2,000 líneas de conducta: audio,
-imagen y PDF; candado «sin rumbo»; seguimiento; hostilidad; formato de
-WhatsApp; blindaje contra sondas; ficha estructurada; reprogramar citas. Y
-Nea, en modo estándar, deja sin agente a Instagram y Messenger.
+turno, solo texto) y completo en Nea (fuera, en Python). Y el par está mal
+conectado: para poner a Nea delante, Nea tiene que quedarse con el webhook de
+Meta, guardar una copia del secreto de la app y relevarle cada mensaje al CRM
+con una cola. De ahí salen los incidentes del par, y por eso Instagram y
+Messenger se quedan sin agente.
 
-- **Runtime unificado** en `src/server/agent/`: módulos por capacidad
-  (`turn`, `tools`, `media`, `stall`, `followup`, `hostilidad`, `formato`,
-  `blindaje`) detrás de una interfaz `AgentProvider`. Un contenedor, un
-  Postgres, un `pnpm test`.
-- **Roles como presets** (datos, no código): instrucciones + herramientas
-  encendidas + conocimiento + personas del Laboratorio. En 2.0 solo el
-  **Calificador** (el agente de hoy).
-- **Laboratorio por rol**: personas configurables, no cableadas.
-- **Paridad antes de apagar nada**: los nueve escenarios de la prueba de
-  punta a punta de Nea corren contra el agente interno, y el Laboratorio cubre
-  hostilidad, sin rumbo y audio.
-- **Nea** queda como referencia del contrato `/api/bot/*` (documentado con
-  OpenAPI); su modo estándar pasa a mantenimiento con una guía para volver el
-  webhook al CRM. La edición cloud hereda el módulo y deja de necesitar un
-  cerebro aparte.
-- **Adaptador de almacenamiento** (`fs` por defecto, S3 opcional): la puerta
-  a plataformas sin disco.
+La primera versión de este plan proponía portar a Nea a TypeScript dentro del
+CRM. Se descartó el 2026-10-08 por cuatro razones:
 
-Es Mayor por la regla del README: quien corre Nea delante de Vocero tendrá
-que mover el webhook de Meta de vuelta al CRM y encender el agente incluido.
+- Encender una herramienta del agente no debe exigir redesplegar el CRM.
+- Un modelo que se cuelga, un PDF pesado o una transcripción lenta no deben
+  competir con la bandeja por el mismo proceso.
+- Quien quiere tocar el cerebro lo hace más cómodo en Python que dentro de
+  una aplicación de Next.js, y Nea es la pieza del starter que se forkea para
+  personalizar el agente.
+- La conducta de Nea está fijada en unas 8,000 líneas de pruebas que salieron
+  de incidentes reales; una reescritura no las hereda.
+
+Lo que estaba mal no era que el agente viviera fuera, sino cómo estaba
+conectado. La 2.0 arregla eso y deja un solo agente: el de fuera.
+
+- **Despacho estándar** (issue #89): el webhook de Meta nunca sale del CRM. El
+  mensaje entra a la bandeja y el CRM le despacha la ráfaga al cerebro,
+  firmada, como ya hace la edición cloud. WhatsApp, Instagram y Messenger
+  despachan igual.
+- **Roles como datos** (issue #90): instrucciones + herramientas encendidas +
+  conocimiento + personas del Laboratorio, guardados en el CRM y entregados
+  por `/api/bot/profile`. En 2.0 solo el **Calificador** (el agente de hoy).
+- **Laboratorio por contrato** (issue #91): el cliente simulado escribe, el
+  CRM despacha al cerebro como en producción y el juez evalúa lo que vuelve.
+  Prueba al cerebro que de verdad contesta, sea Nea o cualquier otro.
+- **Retiro del agente incluido** (issue #106): solo cuando el Laboratorio ya
+  corre por el contrato. Sin cerebro conectado, Vocero es un CRM de bandeja
+  manual; la guía de inicio dice «conecta tu agente» en vez de «enciende el
+  agente».
+- **Contrato público** (issue #92): `/api/bot/*` y el despacho documentados
+  con OpenAPI, con pruebas gemelas en los dos repositorios, y la guía de
+  migración.
+- **Nea por despacho** (issue #37 de nea-agent): pierde su webhook de Meta, el
+  relay y la cola de reenvío, y se queda con el agente. La edición cloud ya
+  funciona así; con 2.0 la raíz y cloud comparten el mismo camino.
+- **Adaptador de almacenamiento** (issue #93; `fs` por defecto, S3 opcional):
+  la puerta a plataformas sin disco. No depende de lo anterior.
+
+Orden: #89 → #91 → #106, con #90 y #92 en paralelo. El agente incluido no se
+toca hasta que el Laboratorio corra por el contrato.
+
+Es Mayor por la regla del README: quien usa el agente incluido tendrá que
+desplegar un cerebro junto al CRM. Quien ya corre Nea 1.x delante de Vocero
+sigue funcionando; pasar al despacho es devolverle el webhook de Meta al CRM.
 
 ## Después (2.1 en adelante)
 
@@ -97,6 +124,9 @@ que mover el webhook de Meta de vuelta al CRM y encender el agente incluido.
 - **Userbot de Telegram**: automatiza cuentas personales y guarda sesiones en
   claro.
 - **Varias empresas en una instancia**: contradice el principio 1.
+- **Portar a Nea dentro del CRM**: fue la primera propuesta de este plan.
+  Ahorraba un contenedor, pero ataba cada cambio del agente a un redeploy del
+  CRM y obligaba a reescribir una conducta que ya está probada.
 - **Orquestador de dos llamadas por turno**: duplica latencia y costo; el
   enrutamiento entre roles se hace por etapa o etiqueta, no con otro modelo.
 - **Una pestaña de Ajustes por canal**: con cinco canales son trece pestañas.
