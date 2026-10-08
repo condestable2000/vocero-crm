@@ -1184,3 +1184,32 @@ export const dispatch = pgTable(
     index("dispatch_status_notbefore_idx").on(t.status, t.notBefore),
   ]
 );
+
+/* ============================================================
+ * Solicitudes de eliminación de datos de Meta (callback)
+ * ============================================================ */
+
+/**
+ * Cada llamada válida al callback de eliminación de datos de Meta deja una
+ * fila: el `confirmation_code` es lo que se devuelve a Meta y lo que el
+ * usuario ve en `/data-deletion/status`. Meta puede reintentar, así que hay
+ * como máximo una solicitud abierta por usuario de Meta.
+ */
+export const dataDeletionRequest = pgTable(
+  "data_deletion_request",
+  {
+    id: text("id").primaryKey(),
+    confirmationCode: text("confirmation_code").notNull(),
+    metaUserId: text("meta_user_id").notNull(),
+    // 'recibida' → 'completada' (la atiende una persona; ver /data-deletion)
+    status: text("status").notNull().default("recibida"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    completedAt: timestamp("completed_at"),
+  },
+  (t) => [
+    uniqueIndex("data_deletion_code_uq").on(t.confirmationCode),
+    uniqueIndex("data_deletion_user_abierta_uq")
+      .on(t.metaUserId)
+      .where(sql`${t.status} = 'recibida'`),
+  ]
+);

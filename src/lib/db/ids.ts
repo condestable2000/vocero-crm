@@ -33,6 +33,8 @@ const prefixes = {
   aiCredentials: "aicred",
   // 021 — despacho al cerebro
   dispatch: "dsp",
+  // Callback de eliminación de datos de Meta
+  dataDeletion: "ddr",
 } as const;
 
 export type IdKind = keyof typeof prefixes;
