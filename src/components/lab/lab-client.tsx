@@ -17,6 +17,7 @@ import {
 import { useEvents } from "@/components/use-events";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -179,11 +180,16 @@ export function LabClient() {
         {detail ? (
           <Report detail={detail} onApplied={() => void refetchDetail(detail.run.id)} />
         ) : (
-          <div className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">
-            {runs.length === 0
-              ? "Corre tu primera evaluación: 6 clientes simulados conversarán con tu agente y un juez calificará cada conversación."
-              : "Elige una corrida del historial."}
-          </div>
+          <EmptyState
+            icon={FlaskConical}
+            className="rounded-lg border border-dashed p-10"
+            title={runs.length === 0 ? "Sin corridas todavía" : "Elige una corrida"}
+            description={
+              runs.length === 0
+                ? "Corre tu primera evaluación: 6 clientes simulados conversarán con tu agente y un juez calificará cada conversación."
+                : "Abre una corrida del historial para ver su reporte."
+            }
+          />
         )}
       </div>
     </div>

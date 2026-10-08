@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   ChevronDown,
   Clock3,
+  FileText,
   Inbox,
   Plus,
   RefreshCw,
@@ -29,6 +30,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -201,17 +203,18 @@ export function TemplatesClient() {
           <p className="text-sm text-muted-foreground">Cargando plantillas…</p>
         ) : empty ? (
           !creating && (
-            <div className="rounded-lg border border-dashed p-6 text-center">
-              <p className="text-sm font-medium">Todavía no tienes plantillas</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Crea la primera para poder escribirle a un cliente cuando pasen
-                las 24 horas. Puedes empezar con un ejemplo.
-              </p>
-              <Button className="mt-4" size="sm" onClick={() => setCreating(true)}>
-                <Plus className="h-4 w-4" />
-                Crear mi primera plantilla
-              </Button>
-            </div>
+            <EmptyState
+              icon={FileText}
+              className="rounded-lg border border-dashed"
+              title="Todavía no tienes plantillas"
+              description="Crea la primera para poder escribirle a un cliente cuando pasen las 24 horas. Puedes empezar con un ejemplo."
+              action={
+                <Button size="sm" onClick={() => setCreating(true)}>
+                  <Plus className="h-4 w-4" />
+                  Crear mi primera plantilla
+                </Button>
+              }
+            />
           )
         ) : (
           <ul className="space-y-2">

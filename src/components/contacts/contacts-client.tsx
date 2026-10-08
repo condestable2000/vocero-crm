@@ -10,12 +10,14 @@ import {
   Search,
   Send,
   UserPlus,
+  Users,
 } from "lucide-react";
 import type { ContactDto } from "@/lib/types";
 import { formatPhone } from "@/lib/utils";
 import { ContactAvatar } from "@/components/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { SOURCE_LABELS } from "@/server/contact-source";
@@ -135,27 +137,28 @@ export function ContactsClient() {
 
       <div className="flex-1 overflow-y-auto p-4 sm:p-6">
         {contacts.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
-            {query.trim() || stage !== "all" ? (
-              <>
-                <p className="text-sm font-medium">Sin resultados</p>
-                <p className="max-w-sm text-xs text-muted-foreground">
+          query.trim() || stage !== "all" ? (
+            <EmptyState
+              icon={Search}
+              className="h-full"
+              title="Sin resultados"
+              description={
+                <>
                   Nadie coincide con
                   {query.trim() ? ` «${query.trim()}»` : ""}
                   {query.trim() && stage !== "all" ? " en" : ""}
                   {stage !== "all" ? ` la etapa «${stage}»` : ""}.
-                </p>
-              </>
-            ) : (
-              <>
-                <p className="text-sm font-medium">Sin contactos</p>
-                <p className="max-w-sm text-xs text-muted-foreground">
-                  Cada persona que escriba a tu WhatsApp quedará registrada aquí
-                  automáticamente.
-                </p>
-              </>
-            )}
-          </div>
+                </>
+              }
+            />
+          ) : (
+            <EmptyState
+              icon={Users}
+              className="h-full"
+              title="Sin contactos"
+              description="Cada persona que escriba a tu WhatsApp quedará registrada aquí automáticamente."
+            />
+          )
         ) : (
           <ul className="space-y-2">
             {contacts.map((c) => (

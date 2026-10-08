@@ -3,24 +3,11 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import {
-  AlertTriangle,
-  CalendarDays,
-  ChartColumn,
-  FlaskConical,
-  Inbox,
-  Kanban,
-  ListChecks,
-  LogOut,
-  Settings,
-  Sparkles,
-  Users,
-  X,
-} from "lucide-react";
+import { AlertTriangle, LogOut, X } from "lucide-react";
 import type { Branding } from "@/lib/branding";
 import type { ThemePreference } from "@/lib/theme";
 import { cn, initials } from "@/lib/utils";
-import { canConfigure } from "@/lib/auth/roles";
+import { appNavGroups, isNavActive, SETTINGS_ITEM, type NavItem } from "@/lib/nav";
 import { signOut } from "@/lib/auth/client";
 import { useEvents } from "@/components/use-events";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -32,41 +19,6 @@ import {
   versionTitle,
   type ResolvedCommit,
 } from "@/lib/version";
-
-type NavItem = {
-  href: string;
-  label: string;
-  icon: typeof Inbox;
-  badge?: boolean;
-};
-
-const NAV: NavItem[] = [
-  { href: "/inbox", label: "Bandeja", icon: Inbox, badge: true },
-  { href: "/pipeline", label: "Pipeline", icon: Kanban },
-  { href: "/contacts", label: "Contactos", icon: Users },
-  // 019 — Después de Contactos: primero se atiende y se organiza, luego se
-  // mide. Antes de Agente y Laboratorio, que son configuración.
-  { href: "/results", label: "Resultados", icon: ChartColumn },
-  { href: "/agent", label: "Agente", icon: Sparkles },
-  { href: "/lab", label: "Laboratorio", icon: FlaskConical },
-];
-
-/** 015 — "Citas" solo existe si esta instancia encendió la agenda. */
-const AGENDA_ITEM: NavItem = {
-  href: "/bookings",
-  label: "Citas",
-  icon: CalendarDays,
-};
-
-/**
- * #86 — La guía de inicio, arriba de todo y solo para quien puede
- * configurar: un miembro del equipo no puede hacer ninguno de sus pasos.
- */
-const GUIDE_ITEM: NavItem = {
-  href: "/onboarding",
-  label: "Guía de inicio",
-  icon: ListChecks,
-};
 
 /**
  * Un renglón del menú, como el `side-item` del mockup de la landing: texto
@@ -138,13 +90,33 @@ export function AppNav({
   });
 
   const version = commit ?? { commit: BUILD_COMMIT, verified: BUILD_COMMIT !== "" };
-  const settingsActive = pathname.startsWith("/settings");
-  // Citas va después de Pipeline: es el paso siguiente de un trato, no una
-  // sección aparte.
-  const items = agenda
-    ? [...NAV.slice(0, 2), AGENDA_ITEM, ...NAV.slice(2)]
-    : NAV;
-  const menu = canConfigure(role) ? [GUIDE_ITEM, ...items] : items;
+  // #87 — Qué hay en el menú y en qué grupo lo decide `appNavGroups`; aquí
+  // solo se pinta.
+  const groups = appNavGroups({ agenda, role });
+
+  function renderItem(item: NavItem) {
+    const active = isNavActive(pathname, item.href);
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        className={navItemClass(active)}
+        aria-current={active ? "page" : undefined}
+      >
+        <item.icon
+          className={cn("h-5 w-5 shrink-0", active ? "text-brand" : "text-text-3")}
+          strokeWidth={1.8}
+          aria-hidden
+        />
+        <span className="flex-1">{item.label}</span>
+        {item.badge && unread > 0 && (
+          <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-brand px-1.5 text-[10.5px] font-bold text-brand-fg">
+            {unread}
+          </span>
+        )}
+      </Link>
+    );
+  }
 
   return (
     <aside
@@ -180,36 +152,26 @@ export function AppNav({
         </div>
       </div>
 
-      <nav className="flex flex-col gap-0.5">
-        {menu.map((item) => {
-          const active =
-            pathname === item.href || pathname.startsWith(`${item.href}/`);
-          return (
-            <Link key={item.href} href={item.href} className={navItemClass(active)}>
-              <item.icon
-                className={cn("h-[17px] w-[17px]", active ? "text-brand" : "text-text-3")}
-                strokeWidth={1.8}
-              />
-              <span className="flex-1">{item.label}</span>
-              {item.badge && unread > 0 && (
-                <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-brand px-1.5 text-[10.5px] font-bold text-brand-fg">
-                  {unread}
-                </span>
-              )}
-            </Link>
-          );
-        })}
+      {/* Grupos con encabezado pequeño, sin letras ni colapsables: se leen
+          de arriba abajo como una lista de lo que hay. Un grupo sin título
+          (Resultados) es una entrada suelta separada por el espacio. */}
+      <nav className="flex flex-col gap-4" aria-label="Secciones">
+        {groups.map((group, i) => (
+          <div key={group.title ?? i} className="flex flex-col gap-0.5">
+            {group.title && (
+              <span className="kicker mb-1 block px-2.5" aria-hidden>
+                {group.title}
+              </span>
+            )}
+            {group.items.map(renderItem)}
+          </div>
+        ))}
       </nav>
 
       <div className="flex-1" />
 
-      <Link href="/settings" className={navItemClass(settingsActive)}>
-        <Settings
-          className={cn("h-[17px] w-[17px]", settingsActive ? "text-brand" : "text-text-3")}
-          strokeWidth={1.8}
-        />
-        Ajustes
-      </Link>
+      {/* Ajustes va abajo, solo: no es trabajo del día. */}
+      {renderItem(SETTINGS_ITEM)}
 
       <div className="mt-1 flex items-center gap-2.5 rounded-sm px-2.5 py-2 hover:bg-accent">
         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-soft text-xs font-bold text-brand-text">
