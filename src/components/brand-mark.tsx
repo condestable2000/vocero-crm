@@ -5,6 +5,8 @@ import {
   BRAND_MARK_BODY,
   BRAND_MARK_STROKE,
   BRAND_MARK_TAIL,
+  GREENIA_ICON_SRC,
+  isGreeniaName,
   isVoceroName,
 } from "@/lib/brand";
 import { faviconHref, faviconInitial } from "@/lib/favicon";
@@ -67,6 +69,12 @@ export function BrandTile({
         "brand-tile flex shrink-0 items-center justify-center overflow-hidden text-brand-fg",
         className
       )}
+      // El logo de GreenIA ya trae su propia forma: sin el degradado del acento.
+      style={
+        !branding.favicon && isGreeniaName(branding.name)
+          ? { background: "none", boxShadow: "none" }
+          : undefined
+      }
       aria-hidden
     >
       {branding.favicon ? (
@@ -78,6 +86,9 @@ export function BrandTile({
           alt=""
           className="h-full w-full object-contain"
         />
+      ) : isGreeniaName(branding.name) ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={GREENIA_ICON_SRC} alt="" className="h-full w-full object-contain" />
       ) : isVoceroName(branding.name) ? (
         <BrandMark className="h-[64%] w-[64%]" cyan={BRAND_CYAN_ON_TILE} />
       ) : (

@@ -36,3 +36,13 @@ export const BRAND_CYAN_ON_TILE = "#3fdcff";
 export function isVoceroName(name: string): boolean {
   return name.trim().toLowerCase() === "vocero";
 }
+
+/**
+ * Fork GreenIA: la marca por defecto. Sin logo subido, una instancia llamada
+ * GreenIA dibuja el icono de Green Valley (`public/greenia-icon.png`).
+ */
+export const GREENIA_ICON_SRC = "/greenia-icon.png?v=1";
+
+export function isGreeniaName(name: string): boolean {
+  return name.trim().toLowerCase() === "greenia";
+}

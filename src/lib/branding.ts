@@ -45,7 +45,7 @@ export type Branding = {
 };
 
 export const DEFAULT_BRANDING: Branding = {
-  name: "Vocero",
+  name: "GreenIA",
   // El azul eléctrico de vocerocrm.com: la instancia recién instalada se ve
   // igual que la landing. Una agencia lo cambia en Configuración → Marca.
   accent: "#0d5bff",
