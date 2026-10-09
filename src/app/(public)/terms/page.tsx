@@ -94,8 +94,9 @@ export default function TermsPage() {
 
       <h2>8. Ley aplicable y contacto</h2>
       <p>
-        Estas condiciones se rigen por la ley española. Para cualquier duda escribe a{" "}
-        <a href={`mailto:${mail}`}>{mail}</a>.
+        Estas condiciones se rigen por la ley española. El servicio lo presta{" "}
+        {LEGAL.controllerName}, NIF {LEGAL.taxId}, con domicilio en {LEGAL.address}. Para
+        cualquier duda escribe a <a href={`mailto:${mail}`}>{mail}</a>.
       </p>
     </LegalDoc>
   );

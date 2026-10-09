@@ -27,7 +27,8 @@ export function PublicShell({
       <footer className="border-t border-border bg-subtle">
         <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-3 px-4 py-6 text-sm text-muted-foreground">
           <span>
-            © {new Date().getFullYear()} {LEGAL.controllerName} · {LEGAL.productName}
+            © {new Date().getFullYear()} {LEGAL.controllerName} · NIF {LEGAL.taxId} ·{" "}
+            {LEGAL.address}
           </span>
           <nav className="flex flex-wrap gap-4" aria-label="Legal">
             <Link href="/privacy" className="hover:text-foreground">

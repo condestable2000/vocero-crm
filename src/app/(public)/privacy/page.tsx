@@ -20,11 +20,12 @@ export default function PrivacyPage() {
 
       <h2>1. Quién es el responsable</h2>
       <p>
-        {LEGAL.controllerName} es el responsable del tratamiento de los datos de las
-        personas que crean una cuenta en {LEGAL.productName}. Respecto a los mensajes y
-        contactos de los clientes finales de cada empresa usuaria, la empresa usuaria es
-        la responsable y {LEGAL.controllerName} actúa como encargado del tratamiento.
-        Contacto: <a href={`mailto:${mail}`}>{mail}</a>.
+        {LEGAL.controllerName} (NIF {LEGAL.taxId}, domicilio en {LEGAL.address}) es la
+        responsable del tratamiento de los datos de las personas que crean una cuenta en{" "}
+        {LEGAL.productName}. Respecto a los mensajes y contactos de los clientes finales
+        de cada empresa usuaria, la empresa usuaria es la responsable y{" "}
+        {LEGAL.controllerShort} actúa como encargada del tratamiento. Contacto de
+        protección de datos: <a href={`mailto:${mail}`}>{mail}</a>.
       </p>
 
       <h2>2. Qué datos tratamos</h2>

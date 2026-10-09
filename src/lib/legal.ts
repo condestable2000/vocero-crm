@@ -5,8 +5,12 @@
  */
 export const LEGAL = {
   productName: "GreenIA",
-  controllerName: "Green Valley",
-  contactEmail: "jpha@greenvalley.es",
+  controllerName: "Green Valley Business, S.L.",
+  /** Nombre corto para el texto corrido. */
+  controllerShort: "Green Valley",
+  taxId: "B97809818",
+  address: "Calle Luis de Hoyos Sainz, 192, planta 3, puerta D, 28030 Madrid (España)",
+  contactEmail: "rgpd@greenvalley.es",
   siteUrl: "https://crm.greenvalley.es",
   /** Fecha de la última revisión de los textos legales (ISO). */
   updatedAt: "2026-10-08",
