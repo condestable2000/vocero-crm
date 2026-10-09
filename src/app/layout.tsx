@@ -37,7 +37,14 @@ export async function generateMetadata(): Promise<Metadata> {
     description: "CRM de WhatsApp con agente de IA y Laboratorio de auto-evaluación",
     // El `?v=` cambia con la marca: los navegadores guardan el favicon con una
     // insistencia notable y, sin eso, el logo nuevo tarda días en aparecer.
-    icons: { icon: faviconHref(branding) },
+    // Sin icono subido en Ajustes → Marca, el logo de GreenIA (public/) en vez
+    // del generado de Vocero.
+    icons: branding.favicon
+      ? { icon: faviconHref(branding) }
+      : {
+          icon: { url: "/greenia-icon.png?v=1", type: "image/png" },
+          apple: "/greenia-icon.png?v=1",
+        },
   };
 }
 
